@@ -42,6 +42,26 @@ BCDM.Defaults = {
                 }
             }
         },
+        CastBar = {
+            Height = 13,
+            FGTexture = "Blizzard Raid Bar",
+            BGTexture = "Solid",
+            FGColour = {255/255, 204/255, 64/255, 1},
+            BGColour = {20/255, 20/255, 20/255, 1},
+            Anchors = {"BOTTOM", "BCDM_PowerBar", "TOP", 0, 2},
+            ColourByClass = false,
+            SpellName = {
+                FontSize = 12,
+                Colour = {1, 1, 1},
+                Anchors = {"BOTTOM", "BOTTOM", 0, 3},
+            },
+            Duration = {
+                FontSize = 12,
+                Colour = {1, 1, 1},
+                Anchors = {"BOTTOM", "BOTTOM", 0, 3},
+                ExpirationThreshold = 5,
+            }
+        },
         Essential = {
             IconSize = {42, 42},
             Anchors = {"CENTER", "CENTER", 0, -275.1},

@@ -42,7 +42,7 @@ local PowerNames = {
     ["MAELSTROM"] = "Maelstrom"
 }
 
-local PowerBarParents = {
+local BarParents = {
     {
         ["EssentialCooldownViewer"] = "Essential",
         ["UtilityCooldownViewer"] = "Utility",
@@ -463,7 +463,7 @@ local function DrawPowerBarSettings(parentContainer)
 
     local PowerBar_AnchorParent = AG:Create("Dropdown")
     PowerBar_AnchorParent:SetLabel("Anchor Parent Frame")
-    PowerBar_AnchorParent:SetList(PowerBarParents[1], PowerBarParents[2])
+    PowerBar_AnchorParent:SetList(BarParents[1], BarParents[2])
     PowerBar_AnchorParent:SetValue(PowerBarDB.Anchors[2])
     PowerBar_AnchorParent:SetRelativeWidth(0.33)
     PowerBar_AnchorParent:SetCallback("OnValueChanged", function(_, _, value) PowerBarDB.Anchors[2] = value BCDM:UpdatePowerBar() end)
@@ -565,6 +565,240 @@ local function DrawPowerBarSettings(parentContainer)
     return ScrollFrame
 end
 
+local function DrawCastBarSettings(parentContainer)
+
+    local CastBarDB = BCDM.db.profile.CastBar
+
+    local ScrollFrame = AG:Create("ScrollFrame")
+    ScrollFrame:SetLayout("Flow")
+    ScrollFrame:SetFullWidth(true)
+    ScrollFrame:SetFullHeight(true)
+    parentContainer:AddChild(ScrollFrame)
+
+    local TextureColourContainer = AG:Create("InlineGroup")
+    TextureColourContainer:SetTitle("Texture & Colour Settings")
+    TextureColourContainer:SetFullWidth(true)
+    TextureColourContainer:SetLayout("Flow")
+    ScrollFrame:AddChild(TextureColourContainer)
+
+    local ForegroundTextureDropdown = AG:Create("LSM30_Statusbar")
+    ForegroundTextureDropdown:SetList(LSM:HashTable("statusbar"))
+    ForegroundTextureDropdown:SetLabel("Foreground Texture")
+    ForegroundTextureDropdown:SetValue(CastBarDB.FGTexture)
+    ForegroundTextureDropdown:SetRelativeWidth(0.5)
+    ForegroundTextureDropdown:SetCallback("OnValueChanged", function(widget, _, value) widget:SetValue(value) CastBarDB.FGTexture = value BCDM:UpdateCastBar() end)
+    TextureColourContainer:AddChild(ForegroundTextureDropdown)
+
+    local BackgroundTextureDropdown = AG:Create("LSM30_Statusbar")
+    BackgroundTextureDropdown:SetList(LSM:HashTable("statusbar"))
+    BackgroundTextureDropdown:SetLabel("Background Texture")
+    BackgroundTextureDropdown:SetValue(CastBarDB.BGTexture)
+    BackgroundTextureDropdown:SetRelativeWidth(0.5)
+    BackgroundTextureDropdown:SetCallback("OnValueChanged", function(widget, _, value) widget:SetValue(value) CastBarDB.BGTexture = value BCDM:UpdateCastBar() end)
+    TextureColourContainer:AddChild(BackgroundTextureDropdown)
+
+    FGColour = AG:Create("ColorPicker")
+    FGColour:SetLabel("Foreground Colour")
+    FGColour:SetColor(unpack(CastBarDB.FGColour))
+    FGColour:SetRelativeWidth(0.33)
+    FGColour:SetCallback("OnValueChanged", function(_, _, r, g, b, a) CastBarDB.FGColour = {r, g, b, a} BCDM:UpdateCastBar() end)
+    FGColour:SetDisabled(CastBarDB.ColourByClass)
+    TextureColourContainer:AddChild(FGColour)
+
+    local BGColour = AG:Create("ColorPicker")
+    BGColour:SetLabel("Background Colour")
+    BGColour:SetColor(unpack(CastBarDB.BGColour))
+    BGColour:SetRelativeWidth(0.33)
+    BGColour:SetCallback("OnValueChanged", function(_, _, r, g, b,  a) CastBarDB.BGColour = {r, g, b, a} BCDM:UpdateCastBar() end)
+    TextureColourContainer:AddChild(BGColour)
+
+    local ColourCastBarByClass = AG:Create("CheckBox")
+    ColourCastBarByClass:SetLabel("Colour by Class")
+    ColourCastBarByClass:SetValue(CastBarDB.ColourByClass)
+    ColourCastBarByClass:SetRelativeWidth(0.33)
+    ColourCastBarByClass:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.ColourByClass = value BCDM:UpdateCastBar() FGColour:SetDisabled(value) end)
+    TextureColourContainer:AddChild(ColourCastBarByClass)
+
+    local LayoutContainer = AG:Create("InlineGroup")
+    LayoutContainer:SetTitle("Layout Settings")
+    LayoutContainer:SetFullWidth(true)
+    LayoutContainer:SetLayout("Flow")
+    ScrollFrame:AddChild(LayoutContainer)
+
+    local CastBar_AnchorFrom = AG:Create("Dropdown")
+    CastBar_AnchorFrom:SetLabel("Anchor From")
+    CastBar_AnchorFrom:SetList(Anchors[1], Anchors[2])
+    CastBar_AnchorFrom:SetValue(CastBarDB.Anchors[1])
+    CastBar_AnchorFrom:SetRelativeWidth(0.33)
+    CastBar_AnchorFrom:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Anchors[1] = value BCDM:UpdateCastBar() end)
+    LayoutContainer:AddChild(CastBar_AnchorFrom)
+
+    local CastBar_AnchorParent = AG:Create("Dropdown")
+    CastBar_AnchorParent:SetLabel("Anchor Parent Frame")
+    CastBar_AnchorParent:SetList(BarParents[1], BarParents[2])
+    CastBar_AnchorParent:SetValue(CastBarDB.Anchors[2])
+    CastBar_AnchorParent:SetRelativeWidth(0.33)
+    CastBar_AnchorParent:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Anchors[2] = value BCDM:UpdateCastBar() end)
+    LayoutContainer:AddChild(CastBar_AnchorParent)
+
+    local CastBar_AnchorTo = AG:Create("Dropdown")
+    CastBar_AnchorTo:SetLabel("Anchor To")
+    CastBar_AnchorTo:SetList(Anchors[1], Anchors[2])
+    CastBar_AnchorTo:SetValue(CastBarDB.Anchors[3])
+    CastBar_AnchorTo:SetRelativeWidth(0.33)
+    CastBar_AnchorTo:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Anchors[3] = value BCDM:UpdateCastBar() end)
+    LayoutContainer:AddChild(CastBar_AnchorTo)
+
+    local CastBar_OffsetX = AG:Create("Slider")
+    CastBar_OffsetX:SetLabel("Offset X")
+    CastBar_OffsetX:SetValue(CastBarDB.Anchors[4])
+    CastBar_OffsetX:SetSliderValues(-2000, 2000, 1)
+    CastBar_OffsetX:SetRelativeWidth(0.33)
+    CastBar_OffsetX:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Anchors[4] = value BCDM:UpdateCastBar() end)
+    LayoutContainer:AddChild(CastBar_OffsetX)
+
+    local CastBar_OffsetY = AG:Create("Slider")
+    CastBar_OffsetY:SetLabel("Offset Y")
+    CastBar_OffsetY:SetValue(CastBarDB.Anchors[5])
+    CastBar_OffsetY:SetSliderValues(-2000, 2000, 1)
+    CastBar_OffsetY:SetRelativeWidth(0.33)
+    CastBar_OffsetY:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Anchors[5] = value BCDM:UpdateCastBar() end)
+    LayoutContainer:AddChild(CastBar_OffsetY)
+
+    local CastBar_Height = AG:Create("Slider")
+    CastBar_Height:SetLabel("Height")
+    CastBar_Height:SetValue(CastBarDB.Height)
+    CastBar_Height:SetSliderValues(5, 50, 1)
+    CastBar_Height:SetRelativeWidth(0.33)
+    CastBar_Height:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Height = value BCDM:UpdateCastBar() end)
+    LayoutContainer:AddChild(CastBar_Height)
+
+    local TextContainer = AG:Create("InlineGroup")
+    TextContainer:SetTitle("Text Settings")
+    TextContainer:SetFullWidth(true)
+    TextContainer:SetLayout("Flow")
+    ScrollFrame:AddChild(TextContainer)
+
+    local SpellNameContainer = AG:Create("InlineGroup")
+    SpellNameContainer:SetTitle("Spell Name Settings")
+    SpellNameContainer:SetFullWidth(true)
+    SpellNameContainer:SetLayout("Flow")
+    TextContainer:AddChild(SpellNameContainer)
+
+    local SpellName_AnchorFrom = AG:Create("Dropdown")
+    SpellName_AnchorFrom:SetLabel("Anchor From")
+    SpellName_AnchorFrom:SetList(Anchors[1], Anchors[2])
+    SpellName_AnchorFrom:SetValue(CastBarDB.SpellName.Anchors[1])
+    SpellName_AnchorFrom:SetRelativeWidth(0.33)
+    SpellName_AnchorFrom:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.SpellName.Anchors[1] = value BCDM:UpdateCastBar() end)
+    SpellNameContainer:AddChild(SpellName_AnchorFrom)
+
+    local SpellName_AnchorTo = AG:Create("Dropdown")
+    SpellName_AnchorTo:SetLabel("Anchor To")
+    SpellName_AnchorTo:SetList(Anchors[1], Anchors[2])
+    SpellName_AnchorTo:SetValue(CastBarDB.SpellName.Anchors[2])
+    SpellName_AnchorTo:SetRelativeWidth(0.33)
+    SpellName_AnchorTo:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.SpellName.Anchors[2] = value BCDM:UpdateCastBar() end)
+    SpellNameContainer:AddChild(SpellName_AnchorTo)
+
+    SpellName_Colour = AG:Create("ColorPicker")
+    SpellName_Colour:SetLabel("Font Colour")
+    SpellName_Colour:SetColor(unpack(CastBarDB.SpellName.Colour))
+    SpellName_Colour:SetRelativeWidth(0.33)
+    SpellName_Colour:SetCallback("OnValueChanged", function(_, _, r, g, b) CastBarDB.SpellName.Colour = {r, g, b} BCDM:UpdateCastBar() end)
+    SpellNameContainer:AddChild(SpellName_Colour)
+
+    local SpellName_OffsetX = AG:Create("Slider")
+    SpellName_OffsetX:SetLabel("Offset X")
+    SpellName_OffsetX:SetValue(CastBarDB.SpellName.Anchors[3])
+    SpellName_OffsetX:SetSliderValues(-200, 200, 1)
+    SpellName_OffsetX:SetRelativeWidth(0.33)
+    SpellName_OffsetX:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.SpellName.Anchors[3] = value BCDM:UpdateCastBar() end)
+    SpellNameContainer:AddChild(SpellName_OffsetX)
+
+    local SpellName_OffsetY = AG:Create("Slider")
+    SpellName_OffsetY:SetLabel("Offset Y")
+    SpellName_OffsetY:SetValue(CastBarDB.SpellName.Anchors[4])
+    SpellName_OffsetY:SetSliderValues(-200, 200, 1)
+    SpellName_OffsetY:SetRelativeWidth(0.33)
+    SpellName_OffsetY:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.SpellName.Anchors[4] = value BCDM:UpdateCastBar() end)
+    SpellNameContainer:AddChild(SpellName_OffsetY)
+
+    local SpellName_FontSize = AG:Create("Slider")
+    SpellName_FontSize:SetLabel("Font Size")
+    SpellName_FontSize:SetValue(CastBarDB.SpellName.FontSize)
+    SpellName_FontSize:SetSliderValues(8, 40, 1)
+    SpellName_FontSize:SetRelativeWidth(0.33)
+    SpellName_FontSize:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.SpellName.FontSize = value BCDM:UpdateCastBar() end)
+    SpellNameContainer:AddChild(SpellName_FontSize)
+
+    local DurationContainer = AG:Create("InlineGroup")
+    DurationContainer:SetTitle("Duration Settings")
+    DurationContainer:SetFullWidth(true)
+    DurationContainer:SetLayout("Flow")
+    TextContainer:AddChild(DurationContainer)
+
+    local Duration_AnchorFrom = AG:Create("Dropdown")
+    Duration_AnchorFrom:SetLabel("Anchor From")
+    Duration_AnchorFrom:SetList(Anchors[1], Anchors[2])
+    Duration_AnchorFrom:SetValue(CastBarDB.Duration.Anchors[1])
+    Duration_AnchorFrom:SetRelativeWidth(0.33)
+    Duration_AnchorFrom:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Duration.Anchors[1] = value BCDM:UpdateCastBar() end)
+    DurationContainer:AddChild(Duration_AnchorFrom)
+
+    local Duration_AnchorTo = AG:Create("Dropdown")
+    Duration_AnchorTo:SetLabel("Anchor To")
+    Duration_AnchorTo:SetList(Anchors[1], Anchors[2])
+    Duration_AnchorTo:SetValue(CastBarDB.Duration.Anchors[2])
+    Duration_AnchorTo:SetRelativeWidth(0.33)
+    Duration_AnchorTo:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Duration.Anchors[2] = value BCDM:UpdateCastBar() end)
+    DurationContainer:AddChild(Duration_AnchorTo)
+
+    Duration_Colour = AG:Create("ColorPicker")
+    Duration_Colour:SetLabel("Font Colour")
+    Duration_Colour:SetColor(unpack(CastBarDB.Duration.Colour))
+    Duration_Colour:SetRelativeWidth(0.33)
+    Duration_Colour:SetCallback("OnValueChanged", function(_, _, r, g, b) CastBarDB.Duration.Colour = {r, g, b} BCDM:UpdateCastBar() end)
+    Duration_Colour:SetDisabled(CastBarDB.Duration.ColourByPower)
+    DurationContainer:AddChild(Duration_Colour)
+
+    local Duration_OffsetX = AG:Create("Slider")
+    Duration_OffsetX:SetLabel("Offset X")
+    Duration_OffsetX:SetValue(CastBarDB.Duration.Anchors[3])
+    Duration_OffsetX:SetSliderValues(-200, 200, 1)
+    Duration_OffsetX:SetRelativeWidth(0.25)
+    Duration_OffsetX:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Duration.Anchors[3] = value BCDM:UpdateCastBar() end)
+    DurationContainer:AddChild(Duration_OffsetX)
+
+    local Duration_OffsetY = AG:Create("Slider")
+    Duration_OffsetY:SetLabel("Offset Y")
+    Duration_OffsetY:SetValue(CastBarDB.Duration.Anchors[4])
+    Duration_OffsetY:SetSliderValues(-200, 200, 1)
+    Duration_OffsetY:SetRelativeWidth(0.25)
+    Duration_OffsetY:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Duration.Anchors[4] = value BCDM:UpdateCastBar() end)
+    DurationContainer:AddChild(Duration_OffsetY)
+
+    local Duration_FontSize = AG:Create("Slider")
+    Duration_FontSize:SetLabel("Font Size")
+    Duration_FontSize:SetValue(CastBarDB.Duration.FontSize)
+    Duration_FontSize:SetSliderValues(8, 40, 1)
+    Duration_FontSize:SetRelativeWidth(0.25)
+    Duration_FontSize:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Duration.FontSize = value BCDM:UpdateCastBar() end)
+    DurationContainer:AddChild(Duration_FontSize)
+
+    local Duration_ExpirationSlider = AG:Create("Slider")
+    Duration_ExpirationSlider:SetLabel("Expiration Threshold (seconds)")
+    Duration_ExpirationSlider:SetValue(CastBarDB.Duration.ExpirationThreshold)
+    Duration_ExpirationSlider:SetSliderValues(0, 5, 1)
+    Duration_ExpirationSlider:SetRelativeWidth(0.25)
+    Duration_ExpirationSlider:SetCallback("OnValueChanged", function(_, _, value) CastBarDB.Duration.ExpirationThreshold = value BCDM:UpdateCastBar() end)
+    DurationContainer:AddChild(Duration_ExpirationSlider)
+
+    ScrollFrame:DoLayout()
+
+    return ScrollFrame
+end
+
 local function DrawSecondaryBarSettings(parentContainer)
     local SecondaryBarDB = BCDM.db.profile.SecondaryBar
 
@@ -634,7 +868,7 @@ local function DrawSecondaryBarSettings(parentContainer)
 
     local SecondaryBar_AnchorParent = AG:Create("Dropdown")
     SecondaryBar_AnchorParent:SetLabel("Anchor Parent Frame")
-    SecondaryBar_AnchorParent:SetList(PowerBarParents[1], PowerBarParents[2])
+    SecondaryBar_AnchorParent:SetList(BarParents[1], BarParents[2])
     SecondaryBar_AnchorParent:SetValue(SecondaryBarDB.Anchors[2])
     SecondaryBar_AnchorParent:SetRelativeWidth(0.33)
     SecondaryBar_AnchorParent:SetCallback("OnValueChanged", function(_, _, value) SecondaryBarDB.Anchors[2] = value BCDM:UpdateSecondaryBar() end)
@@ -863,6 +1097,8 @@ function BCDM:CreateGUI()
             DrawCooldownSettings(Wrapper, "UtilityCooldownViewer")
         elseif MainGroup == "Buffs" then
             DrawCooldownSettings(Wrapper, "BuffIconCooldownViewer")
+        elseif MainGroup == "CastBar" then
+            DrawCastBarSettings(Wrapper)
         elseif MainGroup == "PowerBar" then
             DrawPowerBarSettings(Wrapper)
         elseif MainGroup == "SecondaryBar" then
@@ -879,6 +1115,7 @@ function BCDM:CreateGUI()
         { text = "Essential", value = "Essential"},
         { text = "Utility", value = "Utility"},
         { text = "Buffs", value = "Buffs"},
+        { text = "Cast Bar", value = "CastBar"},
         { text = "Power Bar", value = "PowerBar"},
         { text = "Secondary Bar", value = "SecondaryBar"},
         { text = "Profiles", value = "Profiles"},
