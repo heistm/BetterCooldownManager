@@ -1,4 +1,5 @@
 local _, BCDM = ...
+BCDM.CustomFrames = BCDM.CustomFrames or {}
 
 local DefensiveSpells = {
     -- Monk
@@ -6,6 +7,8 @@ local DefensiveSpells = {
     [1241059] = true,       -- Celestial Infusion
     [115203] = true,        -- Fortifying Brew
     [322507] = true,        -- Celestial Brew
+    -- Windwalker
+    [122470] = true,        -- Touch of Karma
 }
 
 function CreateCustomIcon(spellId)
@@ -62,7 +65,7 @@ function LayoutCustomIcons()
     local DefensiveDB = BCDM.db.profile.Defensive
     local icons = BCDM.DefensiveBar
     if #icons == 0 then return end
-    if not BCDM.DefensiveContainer then BCDM.DefensiveContainer = CreateFrame("Frame", "BCDM_DefensiveContainer", UIParent) end
+    if not BCDM.DefensiveContainer then BCDM.DefensiveContainer = CreateFrame("Frame", "DefensiveCooldownViewer", UIParent) end
 
     local defensiveContainer = BCDM.DefensiveContainer
     local spacing = DefensiveDB.Spacing
@@ -97,12 +100,61 @@ function LayoutCustomIcons()
             end
         end
     end
+
+    defensiveContainer:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+    defensiveContainer:SetScript("OnEvent", function(self, event, ...)
+        if event == "PLAYER_SPECIALIZATION_CHANGED" then
+            BCDM:ResetCustomIcons()
+        end
+    end)
 end
 
 function BCDM:SetupCustomIcons()
+    wipe(BCDM.CustomFrames)
+    wipe(BCDM.DefensiveBar)
+
     for spellId in pairs(DefensiveSpells) do
-        CreateCustomIcon(spellId)
-        table.insert(BCDM.DefensiveBar, _G["BCDM_Custom_" .. spellId])
+        local frame = CreateCustomIcon(spellId)
+        BCDM.CustomFrames[spellId] = frame
+        table.insert(BCDM.DefensiveBar, frame)
+    end
+
+    LayoutCustomIcons()
+end
+
+function BCDM:ResetCustomIcons()
+    for spellId, frame in pairs(BCDM.CustomFrames) do
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent(nil)
+        _G["BCDM_Custom_" .. spellId] = nil
+    end
+
+    BCDM.CustomFrames = {}
+    wipe(BCDM.DefensiveBar)
+
+    -- Recreate based on the NEW DefensiveSpells list
+    for spellId in pairs(DefensiveSpells) do
+        local frame = CreateCustomIcon(spellId)
+        BCDM.CustomFrames[spellId] = frame
+        table.insert(BCDM.DefensiveBar, frame)
+    end
+
+    LayoutCustomIcons()
+end
+
+
+function BCDM:UpdateDefensiveIcons()
+    local CooldownManagerDB = BCDM.db.profile
+    local GeneralDB = CooldownManagerDB.General
+    local DefensiveDB = CooldownManagerDB.Defensive
+    BCDM.DefensiveContainer:ClearAllPoints()
+    BCDM.DefensiveContainer:SetPoint(DefensiveDB.Anchors[1], DefensiveDB.Anchors[2], DefensiveDB.Anchors[3], DefensiveDB.Anchors[4], DefensiveDB.Anchors[5])
+    for _, icon in ipairs(BCDM.DefensiveBar) do
+        if icon then
+            icon:SetSize(DefensiveDB.IconSize[1], DefensiveDB.IconSize[2])
+            icon.Icon:SetTexCoord((GeneralDB.IconZoom) * 0.5, 1 - (GeneralDB.IconZoom) * 0.5, (GeneralDB.IconZoom) * 0.5, 1 - (GeneralDB.IconZoom) * 0.5)
+        end
     end
     LayoutCustomIcons()
 end

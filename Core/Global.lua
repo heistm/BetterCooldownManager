@@ -17,6 +17,7 @@ BCDM.CooldownViewerToDB = {
     ["EssentialCooldownViewer"] = "Essential",
     ["UtilityCooldownViewer"] = "Utility",
     ["BuffIconCooldownViewer"] = "Buffs",
+    ["DefensiveCooldownViewer"] = "Defensive",
 }
 
 BCDM.LayoutConfig = {

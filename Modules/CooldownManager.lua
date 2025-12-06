@@ -232,7 +232,7 @@ function BCDM:SetupCooldownManager()
     hooksecurefunc(EditModeManagerFrame, "EnterEditMode", function() PositionCooldownViewers() SizeIconsInCooldownViewer("EssentialCooldownViewer") SizeIconsInCooldownViewer("UtilityCooldownViewer") SizeIconsInCooldownViewer("BuffIconCooldownViewer") BCDM:SetPowerBarWidth() BCDM:SetSecondaryPowerBarWidth() BCDM:SetCastBarWidth() AdjustCooldownManagerStrata() end)
     hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function() PositionCooldownViewers() SizeIconsInCooldownViewer("EssentialCooldownViewer") SizeIconsInCooldownViewer("UtilityCooldownViewer") SizeIconsInCooldownViewer("BuffIconCooldownViewer") BCDM:SetPowerBarWidth() BCDM:SetSecondaryPowerBarWidth() BCDM:SetCastBarWidth() AdjustCooldownManagerStrata() end)
     for _, cooldownViewer in ipairs(CooldownManagerViewers) do
-        hooksecurefunc(_G[cooldownViewer], "RefreshLayout", function() if InCombatLockdown() then return end SkinCooldownManager() PositionCooldownViewers() SizeIconsInCooldownViewer("EssentialCooldownViewer") SizeIconsInCooldownViewer("UtilityCooldownViewer") SizeIconsInCooldownViewer("BuffIconCooldownViewer") BCDM:SetPowerBarWidth() BCDM:SetSecondaryPowerBarWidth() BCDM:SetCastBarWidth() AdjustCooldownManagerStrata() BCDM:UpdatePowerBar() BCDM:UpdateSecondaryPowerBar() BCDM:UpdateCastBar() end)
+        hooksecurefunc(_G[cooldownViewer], "RefreshLayout", function() if InCombatLockdown() then return end SkinCooldownManager() PositionCooldownViewers() SizeIconsInCooldownViewer("EssentialCooldownViewer") SizeIconsInCooldownViewer("UtilityCooldownViewer") SizeIconsInCooldownViewer("BuffIconCooldownViewer") BCDM:UpdateDefensiveIcons() BCDM:SetPowerBarWidth() BCDM:SetSecondaryPowerBarWidth() BCDM:SetCastBarWidth() AdjustCooldownManagerStrata() BCDM:UpdatePowerBar() BCDM:UpdateSecondaryPowerBar() BCDM:UpdateCastBar() end)
     end
     BCDM:SetupCentreBuffs()
     hooksecurefunc(EssentialCooldownViewer, "OnSystemPositionChange", function(...) SetCooldownViewerPoints("EssentialCooldownViewer") end)
@@ -245,17 +245,19 @@ function BCDM:UpdateCooldownViewer(cooldownViewer)
     AdjustChargeCount(cooldownViewer)
     ApplyCooldownText(cooldownViewer)
     AdjustCooldownManagerStrata()
-    if _G[cooldownViewer] and _G[cooldownViewer].Layout then
-        _G[cooldownViewer]:Layout()
-    end
+    if _G[cooldownViewer] and _G[cooldownViewer].Layout then _G[cooldownViewer]:Layout() end
     PositionCooldownViewers()
     BCDM:SetPowerBarWidth()
     BCDM:SetSecondaryPowerBarWidth()
     BCDM:SetCastBarWidth()
+    if cooldownViewer == "DefensiveCooldownViewer" then
+        BCDM:UpdateDefensiveIcons()
+    end
 end
 
 function BCDM:RefreshAllViewers()
     BCDM:UpdateCooldownViewer("EssentialCooldownViewer")
     BCDM:UpdateCooldownViewer("UtilityCooldownViewer")
     BCDM:UpdateCooldownViewer("BuffIconCooldownViewer")
+    BCDM:UpdateCooldownViewer("DefensiveCooldownViewer")
 end
