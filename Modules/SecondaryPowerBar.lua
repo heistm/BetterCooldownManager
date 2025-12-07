@@ -352,8 +352,11 @@ end
 function BCDM:SetSecondaryPowerBarWidth()
     local SecondaryPowerBarDB = BCDM.db.profile.SecondaryBar
     if BCDM.SecondaryPowerBar then
-        local powerBarWidth = _G[SecondaryPowerBarDB.Anchors[2]]:GetWidth() + 2
+        local powerBarAnchor = SecondaryPowerBarDB.Anchors[2] == "BCDM_PowerBar"
+        local powerBarWidth = (powerBarAnchor and _G[SecondaryPowerBarDB.Anchors[2]]:GetWidth()) or _G[SecondaryPowerBarDB.Anchors[2]]:GetWidth() + 2
         BCDM.SecondaryPowerBar:SetWidth(powerBarWidth)
+        BCDM.SecondaryPowerBar.StatusBar:SetWidth(powerBarWidth)
+        UpdateSecondaryPowerTicks()
     end
 end
 
@@ -375,6 +378,8 @@ function BCDM:UpdateSecondaryPowerBar()
         BCDM.SecondaryPowerBar.StatusBar:SetStatusBarTexture(BCDM.Media.PowerBarFGTexture)
         BCDM.SecondaryPowerBar.StatusBar:SetStatusBarColor(FetchPowerBarColour("player"))
         BCDM:RegisterSecondaryBarEvents(BCDM.SecondaryPowerBar)
+        BCDM:SetSecondaryPowerBarWidth()
+        BCDM:SetSecondaryPowerBarHeight()
         BCDM:UpdateSecondary()
     end
 end

@@ -180,7 +180,7 @@ end
 function BCDM:SetCastBarWidth()
     local CastBarDB = BCDM.db.profile.CastBar
     if BCDM.CastBar then
-        local powerBarAnchor = _G[CastBarDB.Anchors[2]] == _G["BCDM_PowerBar"]
+        local powerBarAnchor = _G[CastBarDB.Anchors[2]] == _G["BCDM_PowerBar"] or _G[CastBarDB.Anchors[2]] == _G["BCDM_SecondaryPowerBar"]
         local castBarWidth = (powerBarAnchor and _G[CastBarDB.Anchors[2]]:GetWidth()) or _G[CastBarDB.Anchors[2]]:GetWidth() + 2
         BCDM.CastBar:SetWidth(castBarWidth)
         BCDM.CastBarContainer:SetWidth(castBarWidth)
