@@ -1,7 +1,12 @@
 <h2 align="center">
-  <img src="https://raw.githubusercontent.com/DaleHuntGB/BetterCooldownManager/refs/heads/main/Media/Logo.png?token=GHSAT0AAAAAADQIMMCUI6BYJBTGVOYANV2A2JVNEOA" alt="BetterCooldownManager Logo" width="48" height="48" />
-  BetterCooldownManager
+  <img src="https://raw.githubusercontent.com/DaleHuntGB/BetterCooldownManager/refs/heads/main/Media/Logo.png?token=GHSAT0AAAAAADQIMMCUI6BYJBTGVOYANV2A2JVNEOA"
+       alt="BetterCooldownManager Logo"
+       width="48"
+       height="48"
+       style="vertical-align: middle;" />
+  <span style="vertical-align: middle;">BetterCooldownManager</span>
 </h2>
+
 
 <p align="center">
   <a href="https://discord.gg/UZCgWRYvVE"><img src="https://img.shields.io/badge/Join-Discord-blue" alt="Discord"></a>
