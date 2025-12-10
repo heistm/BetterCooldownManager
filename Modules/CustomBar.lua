@@ -455,8 +455,10 @@ function BCDM:AddCustomSpell(value)
     if not spellId then return end
     local profileDB = BCDM.db.profile
     local _, class = UnitClass("player")
+    local specName = select(2, GetSpecializationInfo(GetSpecialization()))
     if not profileDB.Custom.CustomSpells[class] then profileDB.Custom.CustomSpells[class] = {} end
-    profileDB.Custom.CustomSpells[class][spellId] = true
+    if not profileDB.Custom.CustomSpells[class][specName] then profileDB.Custom.CustomSpells[class][specName:upper()] = {} end
+    profileDB.Custom.CustomSpells[class][specName:upper()][spellId] = { isActive = true, layoutIndex = (#profileDB.Custom.CustomSpells[class][specName:upper()] + 1) }
     BCDM:ResetCustomIcons()
 end
 
@@ -466,7 +468,9 @@ function BCDM:RemoveCustomSpell(value)
     if not spellId then return end
     local profileDB = BCDM.db.profile
     local _, class = UnitClass("player")
-    if not profileDB.Custom.CustomSpells[class] then profileDB.Custom.CustomSpells[class] = {} end
-    profileDB.Custom.CustomSpells[class][spellId] = nil
+    local specName = select(2, GetSpecializationInfo(GetSpecialization()))
+    if not profileDB.Custom.CustomSpells[class] then return end
+    if not profileDB.Custom.CustomSpells[class][specName:upper()] then return end
+    profileDB.Custom.CustomSpells[class][specName:upper()][spellId] = nil
     BCDM:ResetCustomIcons()
 end
