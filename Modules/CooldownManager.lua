@@ -228,7 +228,6 @@ end
 function BCDM:SetupCooldownManager()
     C_CVar.SetCVar("cooldownViewerEnabled", 1)
     PositionCooldownViewers()
-    for cooldownViewer, _ in pairs(IconPerCooldownViewer) do ApplyCooldownText(cooldownViewer) end
     hooksecurefunc(EditModeManagerFrame, "EnterEditMode", function() PositionCooldownViewers() SizeIconsInCooldownViewer("EssentialCooldownViewer") SizeIconsInCooldownViewer("UtilityCooldownViewer") SizeIconsInCooldownViewer("BuffIconCooldownViewer") BCDM:SetPowerBarWidth() BCDM:SetSecondaryPowerBarWidth() BCDM:SetCastBarWidth() AdjustCooldownManagerStrata() end)
     hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function() PositionCooldownViewers() SizeIconsInCooldownViewer("EssentialCooldownViewer") SizeIconsInCooldownViewer("UtilityCooldownViewer") SizeIconsInCooldownViewer("BuffIconCooldownViewer") BCDM:SetPowerBarWidth() BCDM:SetSecondaryPowerBarWidth() BCDM:SetCastBarWidth() AdjustCooldownManagerStrata() end)
     for _, cooldownViewer in ipairs(CooldownManagerViewers) do
@@ -236,6 +235,7 @@ function BCDM:SetupCooldownManager()
     end
     BCDM:SetupCentreBuffs()
     hooksecurefunc(EssentialCooldownViewer, "OnSystemPositionChange", function(...) SetCooldownViewerPoints("EssentialCooldownViewer") end)
+    for cooldownViewer, _ in pairs(IconPerCooldownViewer) do ApplyCooldownText(cooldownViewer) end
 end
 
 function BCDM:UpdateCooldownViewer(cooldownViewer)
