@@ -134,145 +134,11 @@ local function StopGlow(iconFrame)
     activeGlowingIcons[iconFrame] = nil
 end
 
-
-local function Position()
-    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
-    for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
-        local viewerSettings = cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]]
-        local viewerFrame = _G[viewerName]
-        if viewerFrame and (viewerName == "UtilityCooldownViewer" or viewerName == "BuffIconCooldownViewer") then
-            viewerFrame:ClearAllPoints()
-            viewerFrame:SetPoint(viewerSettings.Layout[1], _G[viewerSettings.Layout[2]], viewerSettings.Layout[3], viewerSettings.Layout[4], viewerSettings.Layout[5])
-            viewerFrame:SetFrameStrata("LOW")
-        elseif viewerFrame then
-            viewerFrame:ClearAllPoints()
-            viewerFrame:SetPoint(viewerSettings.Layout[1], _G[viewerSettings.Layout[2]], viewerSettings.Layout[3], viewerSettings.Layout[4], viewerSettings.Layout[5])
-            viewerFrame:SetFrameStrata("LOW")
-        end
-        NudgeViewer(viewerName, -0.1, 0)
-    end
-end
-
-local function StyleIcons()
-    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
-    for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
-        for _, childFrame in ipairs({_G[viewerName]:GetChildren()}) do
-            if childFrame then
-                if childFrame.Icon then
-                    BCDM:StripTextures(childFrame.Icon)
-                    local iconZoomAmount = cooldownManagerSettings.General.IconZoom * 0.5
-                    childFrame.Icon:SetTexCoord(iconZoomAmount, 1 - iconZoomAmount, iconZoomAmount, 1 - iconZoomAmount)
-                end
-                if childFrame.Cooldown then
-                    childFrame.Cooldown:ClearAllPoints()
-                    childFrame.Cooldown:SetPoint("TOPLEFT", childFrame, "TOPLEFT", 1, -1)
-                    childFrame.Cooldown:SetPoint("BOTTOMRIGHT", childFrame, "BOTTOMRIGHT", -1, 1)
-                    childFrame.Cooldown:SetSwipeColor(0, 0, 0, 0.8)
-                    childFrame.Cooldown:SetDrawEdge(false)
-                    childFrame.Cooldown:SetDrawSwipe(true)
-                    childFrame.Cooldown:SetSwipeTexture("Interface\\Buttons\\WHITE8X8")
-                end
-                if childFrame.CooldownFlash then childFrame.CooldownFlash:SetAlpha(0) end
-                if childFrame.DebuffBorder then childFrame.DebuffBorder:SetAlpha(0) end
-                childFrame:SetSize(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize)
-                BCDM:AddBorder(childFrame)
-            end
-        end
-    end
-end
-
-local function HideBlizzardGlow(iconFrame)
-    if iconFrame.SpellActivationAlert then
-        iconFrame.SpellActivationAlert:Hide()
-        if iconFrame.SpellActivationAlert.ProcLoopFlipbook then
-            iconFrame.SpellActivationAlert.ProcLoopFlipbook:Hide()
-        end
-        if iconFrame.SpellActivationAlert.ProcStartFlipbook then
-            iconFrame.SpellActivationAlert.ProcStartFlipbook:Hide()
-        end
-    end
-
-    if iconFrame.overlay then iconFrame.overlay:Hide() end
-    if iconFrame.Overlay then iconFrame.Overlay:Hide() end
-    if iconFrame.Glow then iconFrame.Glow:Hide() end
-end
-
-local function SetupGlowHooks()
-    if ActionButtonSpellAlertManager then
-        if ActionButtonSpellAlertManager.ShowAlert then
-            hooksecurefunc(ActionButtonSpellAlertManager, "ShowAlert", function(_, button)
-                if shouldBypassHook or not IsCooldownViewerIcon(button) then return end
-                HideBlizzardGlow(button)
-                StartGlow(button)
-            end)
-        end
-
-        if ActionButtonSpellAlertManager.HideAlert then
-            hooksecurefunc(ActionButtonSpellAlertManager, "HideAlert", function(_, button)
-                if not IsCooldownViewerIcon(button) then return end
-                StopGlow(button)
-            end)
-        end
-    end
-end
-
-
-
-local function SetHooks()
-    hooksecurefunc(EditModeManagerFrame, "EnterEditMode", function() if InCombatLockdown() then return end Position() end)
-    hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function() if InCombatLockdown() then return end Position() end)
-    hooksecurefunc(CooldownViewerSettings, "RefreshLayout", function() if InCombatLockdown() then return end BCDM:UpdateCooldownViewer("Buffs") BCDM:UpdateBCDM() end)
-    SetupGlowHooks()
-end
-
-local function StyleChargeCount()
-    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
-    local generalSettings = BCDM.db.profile.General
-    for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
-        for _, childFrame in ipairs({ _G[viewerName]:GetChildren() }) do
-            if childFrame and childFrame.ChargeCount and childFrame.ChargeCount.Current then
-                local currentChargeText = childFrame.ChargeCount.Current
-                currentChargeText:SetFont(BCDM.Media.Font, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.FontSize, generalSettings.Fonts.FontFlag)
-                currentChargeText:ClearAllPoints()
-                currentChargeText:SetPoint(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[1], childFrame, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[3], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[4])
-                currentChargeText:SetTextColor(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[1], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[3], 1)
-                if generalSettings.Fonts.Shadow.Enabled then
-                    currentChargeText:SetShadowColor(generalSettings.Fonts.Shadow.Colour[1], generalSettings.Fonts.Shadow.Colour[2], generalSettings.Fonts.Shadow.Colour[3], generalSettings.Fonts.Shadow.Colour[4])
-                    currentChargeText:SetShadowOffset(generalSettings.Fonts.Shadow.OffsetX, generalSettings.Fonts.Shadow.OffsetY)
-                else
-                    currentChargeText:SetShadowColor(0, 0, 0, 0)
-                    currentChargeText:SetShadowOffset(0, 0)
-                end
-                currentChargeText:SetDrawLayer("OVERLAY")
-            end
-        end
-        for _, childFrame in ipairs({ _G[viewerName]:GetChildren() }) do
-            if childFrame and childFrame.Applications then
-                local applicationsText = childFrame.Applications.Applications
-                applicationsText:SetFont(BCDM.Media.Font, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.FontSize, generalSettings.Fonts.FontFlag)
-                applicationsText:ClearAllPoints()
-                applicationsText:SetPoint(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[1], childFrame, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[3], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[4])
-                applicationsText:SetTextColor(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[1], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[3], 1)
-                if generalSettings.Fonts.Shadow.Enabled then
-                    applicationsText:SetShadowColor(generalSettings.Fonts.Shadow.Colour[1], generalSettings.Fonts.Shadow.Colour[2], generalSettings.Fonts.Shadow.Colour[3], generalSettings.Fonts.Shadow.Colour[4])
-                    applicationsText:SetShadowOffset(generalSettings.Fonts.Shadow.OffsetX, generalSettings.Fonts.Shadow.OffsetY)
-                else
-                    applicationsText:SetShadowColor(0, 0, 0, 0)
-                    applicationsText:SetShadowOffset(0, 0)
-                end
-                applicationsText:SetDrawLayer("OVERLAY")
-            end
-        end
-    end
-end
-
 local function StyleBuffsBars()
     local GeneralDB = BCDM.db.profile.General
     local GeneralCooldownManagerSetting = BCDM.db.profile.CooldownManager.General
     local BuffBarDB = BCDM.db.profile.CooldownManager.BuffBar
     local buffBarChildren = {_G["BuffBarCooldownViewer"]:GetChildren()}
-
-    _G["BuffBarCooldownViewer"]:SetFrameStrata("LOW")
 
     for _, childFrame in ipairs(buffBarChildren) do
         local buffBar = childFrame.Bar
@@ -352,9 +218,143 @@ local function StyleBuffsBars()
                     buffBar.Duration:SetShadowOffset(0, 0)
                 end
             end
+        end
+        BCDM:AddBorder(childFrame)
+        BCDM:AddBorder(buffBar)
+        BCDM:AddBorder(buffIcon)
+    end
+end
 
-            BCDM:AddBorder(buffBar)
-            BCDM:AddBorder(buffIcon)
+local function Position()
+    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
+    local BuffBarDB = BCDM.db.profile.CooldownManager.BuffBar
+    _G["BuffBarCooldownViewer"]:ClearAllPoints()
+    _G["BuffBarCooldownViewer"]:SetPoint(BuffBarDB.Layout[1], _G[BuffBarDB.Layout[2]], BuffBarDB.Layout[3], BuffBarDB.Layout[4], BuffBarDB.Layout[5])
+    _G["BuffBarCooldownViewer"]:SetFrameStrata("LOW")
+    StyleBuffsBars()
+    for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
+        local viewerSettings = cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]]
+        local viewerFrame = _G[viewerName]
+        if viewerFrame and (viewerName == "UtilityCooldownViewer" or viewerName == "BuffIconCooldownViewer") then
+            viewerFrame:ClearAllPoints()
+            viewerFrame:SetPoint(viewerSettings.Layout[1], _G[viewerSettings.Layout[2]], viewerSettings.Layout[3], viewerSettings.Layout[4], viewerSettings.Layout[5])
+            viewerFrame:SetFrameStrata("LOW")
+        elseif viewerFrame then
+            viewerFrame:ClearAllPoints()
+            viewerFrame:SetPoint(viewerSettings.Layout[1], _G[viewerSettings.Layout[2]], viewerSettings.Layout[3], viewerSettings.Layout[4], viewerSettings.Layout[5])
+            viewerFrame:SetFrameStrata("LOW")
+        end
+        NudgeViewer(viewerName, -0.1, 0)
+    end
+end
+
+local function StyleIcons()
+    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
+    for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
+        for _, childFrame in ipairs({_G[viewerName]:GetChildren()}) do
+            if childFrame then
+                if childFrame.Icon then
+                    BCDM:StripTextures(childFrame.Icon)
+                    local iconZoomAmount = cooldownManagerSettings.General.IconZoom * 0.5
+                    childFrame.Icon:SetTexCoord(iconZoomAmount, 1 - iconZoomAmount, iconZoomAmount, 1 - iconZoomAmount)
+                end
+                if childFrame.Cooldown then
+                    childFrame.Cooldown:ClearAllPoints()
+                    childFrame.Cooldown:SetPoint("TOPLEFT", childFrame, "TOPLEFT", 1, -1)
+                    childFrame.Cooldown:SetPoint("BOTTOMRIGHT", childFrame, "BOTTOMRIGHT", -1, 1)
+                    childFrame.Cooldown:SetSwipeColor(0, 0, 0, 0.8)
+                    childFrame.Cooldown:SetDrawEdge(false)
+                    childFrame.Cooldown:SetDrawSwipe(true)
+                    childFrame.Cooldown:SetSwipeTexture("Interface\\Buttons\\WHITE8X8")
+                end
+                if childFrame.CooldownFlash then childFrame.CooldownFlash:SetAlpha(0) end
+                if childFrame.DebuffBorder then childFrame.DebuffBorder:SetAlpha(0) end
+                childFrame:SetSize(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize)
+                BCDM:AddBorder(childFrame)
+            end
+        end
+    end
+end
+
+local function HideBlizzardGlow(iconFrame)
+    if iconFrame.SpellActivationAlert then
+        iconFrame.SpellActivationAlert:Hide()
+        if iconFrame.SpellActivationAlert.ProcLoopFlipbook then
+            iconFrame.SpellActivationAlert.ProcLoopFlipbook:Hide()
+        end
+        if iconFrame.SpellActivationAlert.ProcStartFlipbook then
+            iconFrame.SpellActivationAlert.ProcStartFlipbook:Hide()
+        end
+    end
+
+    if iconFrame.overlay then iconFrame.overlay:Hide() end
+    if iconFrame.Overlay then iconFrame.Overlay:Hide() end
+    if iconFrame.Glow then iconFrame.Glow:Hide() end
+end
+
+local function SetupGlowHooks()
+    if ActionButtonSpellAlertManager then
+        if ActionButtonSpellAlertManager.ShowAlert then
+            hooksecurefunc(ActionButtonSpellAlertManager, "ShowAlert", function(_, button)
+                if shouldBypassHook or not IsCooldownViewerIcon(button) then return end
+                HideBlizzardGlow(button)
+                StartGlow(button)
+            end)
+        end
+
+        if ActionButtonSpellAlertManager.HideAlert then
+            hooksecurefunc(ActionButtonSpellAlertManager, "HideAlert", function(_, button)
+                if not IsCooldownViewerIcon(button) then return end
+                StopGlow(button)
+            end)
+        end
+    end
+end
+
+local function SetHooks()
+    hooksecurefunc(EditModeManagerFrame, "EnterEditMode", function() if InCombatLockdown() then return end Position() end)
+    hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function() if InCombatLockdown() then return end Position() end)
+    hooksecurefunc(CooldownViewerSettings, "RefreshLayout", function() if InCombatLockdown() then return end BCDM:UpdateCooldownViewer("Buffs") BCDM:UpdateBCDM() end)
+    SetupGlowHooks()
+end
+
+local function StyleChargeCount()
+    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
+    local generalSettings = BCDM.db.profile.General
+    for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
+        for _, childFrame in ipairs({ _G[viewerName]:GetChildren() }) do
+            if childFrame and childFrame.ChargeCount and childFrame.ChargeCount.Current then
+                local currentChargeText = childFrame.ChargeCount.Current
+                currentChargeText:SetFont(BCDM.Media.Font, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.FontSize, generalSettings.Fonts.FontFlag)
+                currentChargeText:ClearAllPoints()
+                currentChargeText:SetPoint(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[1], childFrame, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[3], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[4])
+                currentChargeText:SetTextColor(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[1], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[3], 1)
+                if generalSettings.Fonts.Shadow.Enabled then
+                    currentChargeText:SetShadowColor(generalSettings.Fonts.Shadow.Colour[1], generalSettings.Fonts.Shadow.Colour[2], generalSettings.Fonts.Shadow.Colour[3], generalSettings.Fonts.Shadow.Colour[4])
+                    currentChargeText:SetShadowOffset(generalSettings.Fonts.Shadow.OffsetX, generalSettings.Fonts.Shadow.OffsetY)
+                else
+                    currentChargeText:SetShadowColor(0, 0, 0, 0)
+                    currentChargeText:SetShadowOffset(0, 0)
+                end
+                currentChargeText:SetDrawLayer("OVERLAY")
+            end
+        end
+        for _, childFrame in ipairs({ _G[viewerName]:GetChildren() }) do
+            if childFrame and childFrame.Applications then
+                local applicationsText = childFrame.Applications.Applications
+                applicationsText:SetFont(BCDM.Media.Font, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.FontSize, generalSettings.Fonts.FontFlag)
+                applicationsText:ClearAllPoints()
+                applicationsText:SetPoint(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[1], childFrame, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[3], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Layout[4])
+                applicationsText:SetTextColor(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[1], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[2], cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].Text.Colour[3], 1)
+                if generalSettings.Fonts.Shadow.Enabled then
+                    applicationsText:SetShadowColor(generalSettings.Fonts.Shadow.Colour[1], generalSettings.Fonts.Shadow.Colour[2], generalSettings.Fonts.Shadow.Colour[3], generalSettings.Fonts.Shadow.Colour[4])
+                    applicationsText:SetShadowOffset(generalSettings.Fonts.Shadow.OffsetX, generalSettings.Fonts.Shadow.OffsetY)
+                else
+                    applicationsText:SetShadowColor(0, 0, 0, 0)
+                    applicationsText:SetShadowOffset(0, 0)
+                end
+                applicationsText:SetDrawLayer("OVERLAY")
+            end
         end
     end
 end
