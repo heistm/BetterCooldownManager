@@ -1,6 +1,7 @@
 local _, BCDM = ...
 
 local RUNE_BARS = {}
+local COMBO_POINTS = {}
 local resizeTimer = nil
 
 local function DetectSecondaryPower()
@@ -55,8 +56,7 @@ local function FetchPowerBarColour()
             local classColour = RAID_CLASS_COLORS[class]
             if classColour then return classColour.r, classColour.g, classColour.b, 1 end
         else
-            return SecondaryPowerBarDB.ForegroundColour[1], SecondaryPowerBarDB.ForegroundColour[2],
-                   SecondaryPowerBarDB.ForegroundColour[3], SecondaryPowerBarDB.ForegroundColour[4] or 1
+            return SecondaryPowerBarDB.ForegroundColour[1], SecondaryPowerBarDB.ForegroundColour[2], SecondaryPowerBarDB.ForegroundColour[3], SecondaryPowerBarDB.ForegroundColour[4] or 1
         end
     end
     return 1, 1, 1, 1
@@ -83,6 +83,27 @@ local function CreateRuneBars()
     end
 end
 
+local function CreateComboPoints(maxPower)
+    local parent = BCDM.SecondaryPowerBar
+    if not parent then return end
+
+    for i = 1, #COMBO_POINTS do
+        COMBO_POINTS[i]:Hide()
+        COMBO_POINTS[i]:SetParent(nil)
+        COMBO_POINTS[i] = nil
+    end
+    wipe(COMBO_POINTS)
+
+    for i = 1, maxPower do
+        local bar = CreateFrame("StatusBar", nil, parent)
+        bar:SetStatusBarTexture(BCDM.Media.Foreground)
+        bar:SetMinMaxValues(0, 1)
+        bar:SetValue(0)
+        COMBO_POINTS[i] = bar
+    end
+end
+
+
 local function LayoutRuneBars()
     local secondaryBar = BCDM.SecondaryPowerBar
     if not secondaryBar or #RUNE_BARS == 0 then return end
@@ -103,6 +124,34 @@ local function LayoutRuneBars()
             runeBar:SetPoint("LEFT", secondaryBar, "LEFT", 1, 0)
         else
             runeBar:SetPoint("LEFT", RUNE_BARS[i-1], "RIGHT", runeSpacing, 0)
+        end
+    end
+end
+
+local function LayoutComboPoints()
+    local parent = BCDM.SecondaryPowerBar
+    if not parent or #COMBO_POINTS == 0 then return end
+
+    local inset = 1
+    local width = parent:GetWidth() - inset * 2
+    local height = parent:GetHeight() - inset * 2
+    local count = #COMBO_POINTS
+    local barWidth = math.floor(width / count)
+
+    for i = 1, count do
+        local bar = COMBO_POINTS[i]
+        bar:ClearAllPoints()
+        bar:SetHeight(height)
+
+        if i == count then
+            bar:SetPoint("TOPLEFT", COMBO_POINTS[i-1], "TOPRIGHT", 0, 0)
+            bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -inset, inset)
+        elseif i == 1 then
+            bar:SetPoint("TOPLEFT", parent, "TOPLEFT", inset, -inset)
+            bar:SetWidth(barWidth)
+        else
+            bar:SetPoint("TOPLEFT", COMBO_POINTS[i-1], "TOPRIGHT", 0, 0)
+            bar:SetWidth(barWidth)
         end
     end
 end
@@ -187,6 +236,44 @@ local function UpdateRuneDisplay()
     end
 end
 
+local function UpdateComboDisplay()
+    local powerCurrent = UnitPower("player", Enum.PowerType.ComboPoints) or 0
+    local powerMax = UnitPowerMax("player", Enum.PowerType.ComboPoints) or 0
+    local charged = GetUnitChargedPowerPoints("player")
+    local chargedLookup = {}
+
+    if charged then
+        for _, index in ipairs(charged) do
+            chargedLookup[index] = true
+        end
+    end
+
+    if #COMBO_POINTS ~= powerMax then
+        CreateComboPoints(powerMax)
+        LayoutComboPoints()
+    end
+
+    local powerBarColourR, powerBarColourG, powerBarColourB, powerBarColourA = FetchPowerBarColour()
+    local chargedComboPointColourR, chargedComboPointColourG, chargedComboPointColourB, chargedComboPointColourA = unpack(BCDM.db.profile.General.Colours.SecondaryPower["CHARGED_COMBO_POINTS"] or {0.25, 0.5, 1.0, 1.0})
+
+    for i = 1, powerMax do
+        local bar = COMBO_POINTS[i]
+        if i <= powerCurrent then
+            bar:SetValue(1)
+            if chargedLookup[i] then
+                bar:SetStatusBarColor(chargedComboPointColourR, chargedComboPointColourG, chargedComboPointColourB, chargedComboPointColourA or 1)
+            else
+                bar:SetStatusBarColor(powerBarColourR, powerBarColourG, powerBarColourB, powerBarColourA or 1)
+            end
+            bar:Show()
+        else
+            bar:SetValue(0)
+            bar:Hide()
+        end
+    end
+end
+
+
 local function FetchAuraStacks(spellId)
     local auraData = C_UnitAuras.GetPlayerAuraBySpellID(spellId)
     if auraData then return auraData.applications or 0 end
@@ -254,12 +341,10 @@ local function UpdatePowerValues()
         SecondaryPowerBar.Text:SetText(tostring(powerCurrent))
         SecondaryPowerBar.Status:Show()
     elseif powerType == Enum.PowerType.ComboPoints then
-        powerCurrent = UnitPower("player", Enum.PowerType.ComboPoints) or 0
-        local powerMax = UnitPowerMax("player", Enum.PowerType.ComboPoints) or 0
-        SecondaryPowerBar.Status:SetMinMaxValues(0, powerMax)
-        SecondaryPowerBar.Status:SetValue(powerCurrent)
-        SecondaryPowerBar.Text:SetText(tostring(powerCurrent))
         SecondaryPowerBar.Status:Show()
+        SecondaryPowerBar.Status:SetValue(0)
+        UpdateComboDisplay()
+        SecondaryPowerBar.Text:SetText(tostring(UnitPower("player", Enum.PowerType.ComboPoints) or 0))
     elseif powerType == Enum.PowerType.Essence then
         powerCurrent = UnitPower("player", Enum.PowerType.Essence) or 0
         local powerMax = UnitPowerMax("player", Enum.PowerType.Essence) or 0
@@ -307,7 +392,13 @@ local function UpdateBarWidth()
     resizeTimer = C_Timer.After(0.1, function()
         local anchorWidth = anchorFrame:GetWidth()
         SecondaryPowerBar:SetWidth(anchorWidth)
-        if DetectSecondaryPower() == Enum.PowerType.Runes and #RUNE_BARS > 0 then LayoutRuneBars() end
+        local powerType = DetectSecondaryPower()
+
+        if powerType == Enum.PowerType.Runes and #RUNE_BARS > 0 then
+            LayoutRuneBars()
+        elseif powerType == Enum.PowerType.ComboPoints and #COMBO_POINTS > 0 then
+            LayoutComboPoints()
+        end
         resizeTimer = nil
     end)
 end
@@ -451,7 +542,12 @@ function BCDM:UpdateSecondaryPowerBar()
 
         SecondaryPowerBar:SetScript("OnEvent", function(self, event, ...) if event == "RUNE_POWER_UPDATE" or event == "RUNE_TYPE_UPDATE" then if DetectSecondaryPower() == Enum.PowerType.Runes then UpdateRuneDisplay() end else UpdatePowerValues() end end)
 
-        SecondaryPowerBar.Status:SetScript("OnSizeChanged", function() CreateTicksBasedOnPowerType() end)
+        SecondaryPowerBar.Status:SetScript("OnSizeChanged", function()
+            CreateTicksBasedOnPowerType()
+            if DetectSecondaryPower() == Enum.PowerType.ComboPoints and #COMBO_POINTS > 0 then
+                LayoutComboPoints()
+            end
+        end)
 
         UpdatePowerValues()
         CreateTicksBasedOnPowerType()

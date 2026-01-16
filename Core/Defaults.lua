@@ -46,7 +46,8 @@ local Defaults = {
                     SOUL                           = { 0.29, 0.42, 1.00, 1.0},
                     STAGGER                        = { 0.00, 1.00, 0.59, 1.0 },
                     RUNE_RECHARGE                  = { 0.5, 0.5, 0.5, 1.0 },
-                    ESSENCE_RECHARGE               = { 0.5, 0.5, 0.5, 1.0 }
+                    ESSENCE_RECHARGE               = { 0.5, 0.5, 0.5, 1.0 },
+                    CHARGED_COMBO_POINTS           = { 0.25, 0.5, 1.00, 1.0}
                 }
             }
         },

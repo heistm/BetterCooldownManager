@@ -27,6 +27,7 @@ local PowerNames = {
     ["STAGGER"] = "Stagger",
     ["SOUL"] = "Soul",
     ["RUNE_RECHARGE"] = "Rune on Cooldown",
+    ["CHARGED_COMBO_POINTS"] = "Charged Combo Points",
 }
 
 local ClassToPrettyClass = {
@@ -421,7 +422,8 @@ local function CreateGeneralSettings(parentContainer)
             [Enum.PowerType.Runes]         = { 0.77, 0.12, 0.23, 1.0 },
             SOUL                           = { 0.29, 0.42, 1.00, 1.0},
             [Enum.PowerType.Maelstrom]     = { 0.25, 0.50, 0.80, 1.0},
-            RUNE_RECHARGE                 = { 0.5, 0.5, 0.5, 1.0 }
+            RUNE_RECHARGE                 = { 0.5, 0.5, 0.5, 1.0 },
+            CHARGED_COMBO_POINTS           = { 0.25, 0.5, 1.00, 1.0}
         }
     }
 
@@ -450,7 +452,7 @@ local function CreateGeneralSettings(parentContainer)
     SecondaryColoursContainer:SetLayout("Flow")
     CustomColoursContainer:AddChild(SecondaryColoursContainer)
 
-    local SecondaryPowerOrder = { Enum.PowerType.Chi, Enum.PowerType.ComboPoints, Enum.PowerType.HolyPower, Enum.PowerType.ArcaneCharges, Enum.PowerType.Essence, Enum.PowerType.SoulShards, "STAGGER", Enum.PowerType.Runes, "RUNE_RECHARGE", "SOUL", Enum.PowerType.Maelstrom, }
+    local SecondaryPowerOrder = { Enum.PowerType.Chi, Enum.PowerType.ComboPoints, Enum.PowerType.HolyPower, Enum.PowerType.ArcaneCharges, Enum.PowerType.Essence, Enum.PowerType.SoulShards, "STAGGER", Enum.PowerType.Runes, "RUNE_RECHARGE", "SOUL", Enum.PowerType.Maelstrom, "CHARGED_COMBO_POINTS" }
     for _, powerType in ipairs(SecondaryPowerOrder) do
         local powerColour = BCDM.db.profile.General.Colours.SecondaryPower[powerType]
         local PowerColour = AG:Create("ColorPicker")
