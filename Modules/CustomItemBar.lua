@@ -190,38 +190,40 @@ local function LayoutCustomItemBar()
     local iconSize = CustomDB.IconSize
     local iconSpacing = CustomDB.Spacing
 
-    for i, itemIcon in ipairs(customItemBarIcons) do
-        itemIcon:SetParent(BCDM.CustomItemBarContainer)
-        itemIcon:SetSize(iconSize, iconSize)
-        itemIcon:ClearAllPoints()
+    local LayoutConfig = {
+        TOPLEFT     = { anchor="TOPLEFT",     xMult=1,  yMult=1  },
+        TOP         = { anchor="TOP",         xMult=0,  yMult=1  },
+        TOPRIGHT    = { anchor="TOPRIGHT",    xMult=-1, yMult=1  },
+        BOTTOMLEFT  = { anchor="BOTTOMLEFT",  xMult=1,  yMult=-1 },
+        BOTTOM      = { anchor="BOTTOM",      xMult=0,  yMult=-1 },
+        BOTTOMRIGHT = { anchor="BOTTOMRIGHT", xMult=-1, yMult=-1 },
+        LEFT        = { anchor="LEFT",        xMult=1,  yMult=0  },
+        RIGHT       = { anchor="RIGHT",       xMult=-1, yMult=0  },
+        CENTER      = { anchor="CENTER",      xMult=0,  yMult=0  },
+    }
 
-        if growthDirection == "RIGHT" then
-            if i == 1 then
-                itemIcon:SetPoint("LEFT", BCDM.CustomItemBarContainer, "LEFT", 0, 0)
-            else
-                itemIcon:SetPoint("LEFT", customItemBarIcons[i - 1], "RIGHT", iconSpacing, 0)
-            end
-        elseif growthDirection == "LEFT" then
-            if i == 1 then
-                itemIcon:SetPoint("RIGHT", BCDM.CustomItemBarContainer, "RIGHT", 0, 0)
-            else
-                itemIcon:SetPoint("RIGHT", customItemBarIcons[i - 1], "LEFT", -iconSpacing, 0)
-            end
-        elseif growthDirection == "UP" then
-            if i == 1 then
-                itemIcon:SetPoint("BOTTOM", BCDM.CustomItemBarContainer, "BOTTOM", 0, 0)
-            else
-                itemIcon:SetPoint("BOTTOM", customItemBarIcons[i - 1], "TOP", 0, iconSpacing)
-            end
-        elseif growthDirection == "DOWN" then
-            if i == 1 then
-                itemIcon:SetPoint("TOP", BCDM.CustomItemBarContainer, "TOP", 0, 0)
-            else
-                itemIcon:SetPoint("TOP", customItemBarIcons[i - 1], "BOTTOM", 0, -iconSpacing)
+    for i, spellIcon in ipairs(customItemBarIcons) do
+        spellIcon:SetParent(BCDM.CustomItemBarContainer)
+        spellIcon:SetSize(iconSize, iconSize)
+        spellIcon:ClearAllPoints()
+
+        if i == 1 then
+            local point = select(1, BCDM.CustomItemBarContainer:GetPoint(1))
+            local config = LayoutConfig[point] or LayoutConfig.TOPLEFT
+            spellIcon:SetPoint(config.anchor, BCDM.CustomItemBarContainer, config.anchor, 0, 0)
+        else
+            if growthDirection == "RIGHT" then
+                spellIcon:SetPoint("LEFT", customItemBarIcons[i - 1], "RIGHT", iconSpacing, 0)
+            elseif growthDirection == "LEFT" then
+                spellIcon:SetPoint("RIGHT", customItemBarIcons[i - 1], "LEFT", -iconSpacing, 0)
+            elseif growthDirection == "UP" then
+                spellIcon:SetPoint("BOTTOM", customItemBarIcons[i - 1], "TOP", 0, iconSpacing)
+            elseif growthDirection == "DOWN" then
+                spellIcon:SetPoint("TOP", customItemBarIcons[i - 1], "BOTTOM", 0, -iconSpacing)
             end
         end
-        ApplyCooldownText(itemIcon.Cooldown)
-        itemIcon:Show()
+        ApplyCooldownText()
+        spellIcon:Show()
     end
 
     if #customItemBarIcons > 0 then
