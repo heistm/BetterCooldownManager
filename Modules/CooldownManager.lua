@@ -151,12 +151,11 @@ local function StyleBuffsBars()
                 local anchorWidth = anchorFrame:GetWidth()
                 childFrame:SetWidth(anchorWidth)
                 _G["BuffBarCooldownViewer"]:SetWidth(anchorWidth)
-            else
-                childFrame:SetWidth(BuffBarDB.Width)
-                _G["BuffBarCooldownViewer"]:SetWidth(BuffBarDB.Width)
             end
+        else
+            childFrame:SetWidth(BuffBarDB.Width)
+            _G["BuffBarCooldownViewer"]:SetWidth(BuffBarDB.Width)
         end
-
         childFrame:SetHeight(BuffBarDB.Height)
 
         if childFrame.Bar then
@@ -178,15 +177,15 @@ local function StyleBuffsBars()
             buffBar.BarBG:SetVertexColor(BuffBarDB.BackgroundColour[1], BuffBarDB.BackgroundColour[2], BuffBarDB.BackgroundColour[3], BuffBarDB.BackgroundColour[4])
 
             if buffIcon then
-                -- if not BuffBarDB.Icon.Enabled then buffIcon:Hide() else buffIcon:Show() end
+                if not BuffBarDB.Icon.Enabled then buffIcon:Hide() else buffIcon:Show() end
                 BCDM:StripTextures(buffIcon.Icon)
                 buffIcon.Icon:SetSize(BuffBarDB.Height, BuffBarDB.Height)
                 buffIcon.Icon:ClearAllPoints()
-                -- if BuffBarDB.Icon.Layout == "LEFT" then
-                --     buffIcon.Icon:SetPoint("RIGHT", buffBar, "LEFT", 1, 0)
-                -- else
-                --     buffIcon.Icon:SetPoint("LEFT", buffBar, "RIGHT", -1, 0)
-                -- end
+                if BuffBarDB.Icon.Layout == "LEFT" then
+                    buffIcon.Icon:SetPoint("RIGHT", buffBar, "LEFT", 1, 0)
+                else
+                    buffIcon.Icon:SetPoint("LEFT", buffBar, "RIGHT", -1, 0)
+                end
                 buffIcon.Icon:SetTexCoord(GeneralCooldownManagerSetting.IconZoom * 0.5, 1 - GeneralCooldownManagerSetting.IconZoom * 0.5, GeneralCooldownManagerSetting.IconZoom * 0.5, 1 - GeneralCooldownManagerSetting.IconZoom * 0.5)
             end
 
@@ -231,7 +230,6 @@ local function Position()
     _G["BuffBarCooldownViewer"]:ClearAllPoints()
     _G["BuffBarCooldownViewer"]:SetPoint(BuffBarDB.Layout[1], _G[BuffBarDB.Layout[2]], BuffBarDB.Layout[3], BuffBarDB.Layout[4], BuffBarDB.Layout[5])
     _G["BuffBarCooldownViewer"]:SetFrameStrata("LOW")
-    StyleBuffsBars()
     for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
         local viewerSettings = cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]]
         local viewerFrame = _G[viewerName]
@@ -246,6 +244,11 @@ local function Position()
         end
         NudgeViewer(viewerName, -0.1, 0)
     end
+end
+
+function BCDM:UpdateBuffBarStyle()
+    Position()
+    StyleBuffsBars()
 end
 
 local function StyleIcons()
@@ -413,7 +416,6 @@ local function SetGlowType()
     end
 end
 
-
 function BCDM:SkinCooldownManager()
     C_CVar.SetCVar("cooldownViewerEnabled", 1)
     StyleIcons()
@@ -429,6 +431,7 @@ function BCDM:SkinCooldownManager()
 end
 
 function BCDM:UpdateCooldownViewer(viewerType)
+    if viewerType == "BuffBar" then BCDM:UpdateBuffBarStyle() return end
     local cooldownManagerSettings = BCDM.db.profile.CooldownManager
     local cooldownViewerFrame = _G[BCDM.DBViewerToCooldownManagerViewer[viewerType]]
     if viewerType == "Custom" then BCDM:UpdateCustomCooldownViewer() return end

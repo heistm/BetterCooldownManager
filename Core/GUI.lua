@@ -1222,6 +1222,24 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         colourByClassCheckbox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.profile.CooldownManager.BuffBar.ColourByClass = value BCDM:UpdateCooldownViewer("BuffBar") end)
         colourByClassCheckbox:SetRelativeWidth(0.5)
         toggleContainer:AddChild(colourByClassCheckbox)
+
+        local foregroundColourPicker = AG:Create("ColorPicker")
+        foregroundColourPicker:SetLabel("Foreground Colour")
+        local r, g, b = unpack(BCDM.db.profile.CooldownManager.BuffBar.ForegroundColour)
+        foregroundColourPicker:SetColor(r, g, b)
+        foregroundColourPicker:SetCallback("OnValueChanged", function(self, _, r, g, b, a) BCDM.db.profile.CooldownManager.BuffBar.ForegroundColour = {r, g, b, a} BCDM:UpdateCooldownViewer("BuffBar") end)
+        foregroundColourPicker:SetRelativeWidth(0.5)
+        foregroundColourPicker:SetHasAlpha(false)
+        toggleContainer:AddChild(foregroundColourPicker)
+
+        local backgroundColourPicker = AG:Create("ColorPicker")
+        backgroundColourPicker:SetLabel("Background Colour")
+        local br, bg, bb = unpack(BCDM.db.profile.CooldownManager.BuffBar.BackgroundColour)
+        backgroundColourPicker:SetColor(br, bg, bb)
+        backgroundColourPicker:SetCallback("OnValueChanged", function(self, _, r, g, b, a) BCDM.db.profile.CooldownManager.BuffBar.BackgroundColour = {r, g, b, a} BCDM:UpdateCooldownViewer("BuffBar") end)
+        backgroundColourPicker:SetRelativeWidth(0.5)
+        backgroundColourPicker:SetHasAlpha(true)
+        toggleContainer:AddChild(backgroundColourPicker)
     end
 
     local layoutContainer = AG:Create("InlineGroup")
@@ -1293,6 +1311,24 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
     yOffsetSlider:SetRelativeWidth(isViewerBuffBar and 0.5 or 0.33)
     layoutContainer:AddChild(yOffsetSlider)
 
+    if isViewerBuffBar then
+        local widthSlider = AG:Create("Slider")
+        widthSlider:SetLabel("Width")
+        widthSlider:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Width)
+        widthSlider:SetSliderValues(50, 1000, 1)
+        widthSlider:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager.BuffBar.Width = value BCDM:UpdateCooldownViewer(viewerType) end)
+        widthSlider:SetRelativeWidth(0.5)
+        layoutContainer:AddChild(widthSlider)
+
+        local heightSlider = AG:Create("Slider")
+        heightSlider:SetLabel("Height")
+        heightSlider:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Height)
+        heightSlider:SetSliderValues(5, 500, 1)
+        heightSlider:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager.BuffBar.Height = value BCDM:UpdateCooldownViewer(viewerType) end)
+        heightSlider:SetRelativeWidth(0.5)
+        layoutContainer:AddChild(heightSlider)
+    end
+
     if not isViewerBuffBar then
         local iconSizeSlider = AG:Create("Slider")
         iconSizeSlider:SetLabel("Icon Size")
@@ -1301,6 +1337,29 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         iconSizeSlider:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].IconSize = value BCDM:UpdateCooldownViewer(viewerType) end)
         iconSizeSlider:SetRelativeWidth(0.33)
         layoutContainer:AddChild(iconSizeSlider)
+    end
+
+    if isViewerBuffBar then
+        local iconContainer = AG:Create("InlineGroup")
+        iconContainer:SetTitle("Icon Settings")
+        iconContainer:SetFullWidth(true)
+        iconContainer:SetLayout("Flow")
+        ScrollFrame:AddChild(iconContainer)
+
+        local enableIconCheckBox = AG:Create("CheckBox")
+        enableIconCheckBox:SetLabel("Enable Icon")
+        enableIconCheckBox:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Icon.Enabled)
+        enableIconCheckBox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager.BuffBar.Icon.Enabled = value BCDM:UpdateCooldownViewer(viewerType) end)
+        enableIconCheckBox:SetRelativeWidth(0.5)
+        iconContainer:AddChild(enableIconCheckBox)
+
+        local iconPositionDropdown = AG:Create("Dropdown")
+        iconPositionDropdown:SetLabel("Icon Position")
+        iconPositionDropdown:SetList({["LEFT"] = "Left", ["RIGHT"] = "Right"}, {"LEFT", "RIGHT"})
+        iconPositionDropdown:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Icon.Layout)
+        iconPositionDropdown:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager.BuffBar.Icon.Layout = value BCDM:UpdateCooldownViewer(viewerType) end)
+        iconPositionDropdown:SetRelativeWidth(0.5)
+        iconContainer:AddChild(iconPositionDropdown)
     end
 
     CreateCooldownViewerTextSettings(ScrollFrame, viewerType)
