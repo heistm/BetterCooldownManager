@@ -887,7 +887,7 @@ local function CreateCooldownViewerTextSettings(parentContainer, viewerType)
         local name_toggleCheckbox = AG:Create("CheckBox")
         name_toggleCheckbox:SetLabel("Enable Name Text")
         name_toggleCheckbox:SetValue(BCDM.db.profile.CooldownManager[viewerType].Text.SpellName.Enabled)
-        name_toggleCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].Text.SpellName.Enabled = value BCDM:UpdateCooldownViewer(viewerType) end)
+        name_toggleCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].Text.SpellName.Enabled = value BCDM:UpdateCooldownViewer(viewerType) RefreshBuffBarTextGUISettings() end)
         name_toggleCheckbox:SetRelativeWidth(1)
         nameContainer:AddChild(name_toggleCheckbox)
 
@@ -948,7 +948,7 @@ local function CreateCooldownViewerTextSettings(parentContainer, viewerType)
         local duration_toggleCheckbox = AG:Create("CheckBox")
         duration_toggleCheckbox:SetLabel("Enable Duration Text")
         duration_toggleCheckbox:SetValue(BCDM.db.profile.CooldownManager[viewerType].Text.Duration.Enabled)
-        duration_toggleCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].Text.Duration.Enabled = value BCDM:UpdateCooldownViewer(viewerType) end)
+        duration_toggleCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].Text.Duration.Enabled = value BCDM:UpdateCooldownViewer(viewerType) RefreshBuffBarTextGUISettings() end)
         duration_toggleCheckbox:SetRelativeWidth(1)
         durationContainer:AddChild(duration_toggleCheckbox)
 
@@ -999,6 +999,25 @@ local function CreateCooldownViewerTextSettings(parentContainer, viewerType)
         duration_ColourPicker:SetCallback("OnValueChanged", function(self, _, r, g, b) BCDM.db.profile.CooldownManager[viewerType].Text.Duration.Colour = {r, g, b} BCDM:UpdateCooldownViewer(viewerType) end)
         duration_ColourPicker:SetRelativeWidth(0.5)
         durationContainer:AddChild(duration_ColourPicker)
+
+        function RefreshBuffBarTextGUISettings()
+            local nameEnabled = BCDM.db.profile.CooldownManager[viewerType].Text.SpellName.Enabled
+            name_AnchorFromDropdown:SetDisabled(not nameEnabled)
+            name_AnchorToDropdown:SetDisabled(not nameEnabled)
+            name_XOffsetSlider:SetDisabled(not nameEnabled)
+            name_YOffsetSlider:SetDisabled(not nameEnabled)
+            name_FontSizeSlider:SetDisabled(not nameEnabled)
+            name_ColourPicker:SetDisabled(not nameEnabled)
+
+            local durationEnabled = BCDM.db.profile.CooldownManager[viewerType].Text.Duration.Enabled
+            duration_AnchorFromDropdown:SetDisabled(not durationEnabled)
+            duration_AnchorToDropdown:SetDisabled(not durationEnabled)
+            duration_XOffsetSlider:SetDisabled(not durationEnabled)
+            duration_YOffsetSlider:SetDisabled(not durationEnabled)
+            duration_FontSizeSlider:SetDisabled(not durationEnabled)
+            duration_ColourPicker:SetDisabled(not durationEnabled)
+        end
+        RefreshBuffBarTextGUISettings()
     end
 
     return textContainer
@@ -1202,6 +1221,8 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         toggleContainer:AddChild(centerBuffsCheckbox)
     end
 
+    local foregroundColourPicker;
+
     if viewerType == "BuffBar" then
         local toggleContainer = AG:Create("InlineGroup")
         toggleContainer:SetTitle("Buff Bar Viewer Settings")
@@ -1212,18 +1233,18 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         local matchWidthOfAnchorCheckBox = AG:Create("CheckBox")
         matchWidthOfAnchorCheckBox:SetLabel("Match Width of Anchor")
         matchWidthOfAnchorCheckBox:SetValue(BCDM.db.profile.CooldownManager.BuffBar.MatchWidthOfAnchor)
-        matchWidthOfAnchorCheckBox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.profile.CooldownManager.BuffBar.MatchWidthOfAnchor = value BCDM:UpdateCooldownViewer("BuffBar") end)
+        matchWidthOfAnchorCheckBox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.profile.CooldownManager.BuffBar.MatchWidthOfAnchor = value BCDM:UpdateCooldownViewer("BuffBar") RefreshBuffBarGUISettings() end)
         matchWidthOfAnchorCheckBox:SetRelativeWidth(0.5)
         toggleContainer:AddChild(matchWidthOfAnchorCheckBox)
 
         local colourByClassCheckbox = AG:Create("CheckBox")
         colourByClassCheckbox:SetLabel("Colour Bar by Class")
         colourByClassCheckbox:SetValue(BCDM.db.profile.CooldownManager.BuffBar.ColourByClass)
-        colourByClassCheckbox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.profile.CooldownManager.BuffBar.ColourByClass = value BCDM:UpdateCooldownViewer("BuffBar") end)
+        colourByClassCheckbox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.profile.CooldownManager.BuffBar.ColourByClass = value BCDM:UpdateCooldownViewer("BuffBar") RefreshBuffBarGUISettings() end)
         colourByClassCheckbox:SetRelativeWidth(0.5)
         toggleContainer:AddChild(colourByClassCheckbox)
 
-        local foregroundColourPicker = AG:Create("ColorPicker")
+        foregroundColourPicker = AG:Create("ColorPicker")
         foregroundColourPicker:SetLabel("Foreground Colour")
         local r, g, b = unpack(BCDM.db.profile.CooldownManager.BuffBar.ForegroundColour)
         foregroundColourPicker:SetColor(r, g, b)
@@ -1311,8 +1332,10 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
     yOffsetSlider:SetRelativeWidth(isViewerBuffBar and 0.5 or 0.33)
     layoutContainer:AddChild(yOffsetSlider)
 
+    local widthSlider;
+
     if isViewerBuffBar then
-        local widthSlider = AG:Create("Slider")
+        widthSlider = AG:Create("Slider")
         widthSlider:SetLabel("Width")
         widthSlider:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Width)
         widthSlider:SetSliderValues(50, 1000, 1)
@@ -1339,6 +1362,8 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         layoutContainer:AddChild(iconSizeSlider)
     end
 
+    local iconPositionDropdown;
+
     if isViewerBuffBar then
         local iconContainer = AG:Create("InlineGroup")
         iconContainer:SetTitle("Icon Settings")
@@ -1349,11 +1374,11 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         local enableIconCheckBox = AG:Create("CheckBox")
         enableIconCheckBox:SetLabel("Enable Icon")
         enableIconCheckBox:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Icon.Enabled)
-        enableIconCheckBox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager.BuffBar.Icon.Enabled = value BCDM:UpdateCooldownViewer(viewerType) end)
+        enableIconCheckBox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager.BuffBar.Icon.Enabled = value BCDM:UpdateCooldownViewer(viewerType) RefreshBuffBarGUISettings() end)
         enableIconCheckBox:SetRelativeWidth(0.5)
         iconContainer:AddChild(enableIconCheckBox)
 
-        local iconPositionDropdown = AG:Create("Dropdown")
+        iconPositionDropdown = AG:Create("Dropdown")
         iconPositionDropdown:SetLabel("Icon Position")
         iconPositionDropdown:SetList({["LEFT"] = "Left", ["RIGHT"] = "Right"}, {"LEFT", "RIGHT"})
         iconPositionDropdown:SetValue(BCDM.db.profile.CooldownManager.BuffBar.Icon.Layout)
@@ -1381,6 +1406,17 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         ScrollFrame:AddChild(itemContainer)
         CreateCooldownViewerItemSettings(itemContainer, ScrollFrame)
     end
+
+    function RefreshBuffBarGUISettings()
+        local matchWidth = BCDM.db.profile.CooldownManager.BuffBar.MatchWidthOfAnchor
+        local useClassColour = BCDM.db.profile.CooldownManager.BuffBar.ColourByClass
+        local iconEnabled = BCDM.db.profile.CooldownManager.BuffBar.Icon.Enabled
+        foregroundColourPicker:SetDisabled(useClassColour)
+        widthSlider:SetDisabled(matchWidth)
+        iconPositionDropdown:SetDisabled(not iconEnabled)
+    end
+
+    if viewerType == "BuffBar" then RefreshBuffBarGUISettings() end
 
     ScrollFrame:DoLayout()
 
