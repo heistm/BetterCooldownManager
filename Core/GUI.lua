@@ -1965,7 +1965,9 @@ local function CreateSecondaryPowerBarSettings(parentContainer)
             end
         else
             for _, child in ipairs(toggleContainer.children) do
-                child:SetDisabled(false)
+                if child.SetDisabled then
+                    child:SetDisabled(false)
+                end
             end
             for _, child in ipairs(layoutContainer.children) do
                 child:SetDisabled(false)
