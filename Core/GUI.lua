@@ -1814,6 +1814,8 @@ local function CreateSecondaryPowerBarSettings(parentContainer)
     ScrollFrame:SetFullHeight(true)
     parentContainer:AddChild(ScrollFrame)
 
+    local isUnitMonkorDeathKnight = isUnitDeathKnight or isUnitMonk
+
     local toggleContainer = AG:Create("InlineGroup")
     toggleContainer:SetTitle("Toggles & Colours")
     toggleContainer:SetFullWidth(true)
@@ -1824,21 +1826,21 @@ local function CreateSecondaryPowerBarSettings(parentContainer)
     enabledCheckbox:SetLabel("Enable Power Bar")
     enabledCheckbox:SetValue(BCDM.db.profile.SecondaryPowerBar.Enabled)
     enabledCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.SecondaryPowerBar.Enabled = value BCDM:UpdateSecondaryPowerBar() RefreshSecondaryPowerBarGUISettings() end)
-    enabledCheckbox:SetRelativeWidth(isUnitDeathKnight and 1 or 0.25)
+    enabledCheckbox:SetRelativeWidth(isUnitMonkorDeathKnight and 1 or 0.25)
     toggleContainer:AddChild(enabledCheckbox)
 
     local colourByTypeCheckbox = AG:Create("CheckBox")
     colourByTypeCheckbox:SetLabel("Colour By Power Type")
     colourByTypeCheckbox:SetValue(BCDM.db.profile.SecondaryPowerBar.ColourByType)
     colourByTypeCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.SecondaryPowerBar.ColourByType = value BCDM:UpdateSecondaryPowerBar() RefreshSecondaryPowerBarGUISettings() end)
-    colourByTypeCheckbox:SetRelativeWidth(isUnitDeathKnight and 0.33 or 0.25)
+    colourByTypeCheckbox:SetRelativeWidth(isUnitMonkorDeathKnight and 0.33 or 0.25)
     toggleContainer:AddChild(colourByTypeCheckbox)
 
     local colourByClassCheckbox = AG:Create("CheckBox")
     colourByClassCheckbox:SetLabel("Colour By Class")
     colourByClassCheckbox:SetValue(BCDM.db.profile.SecondaryPowerBar.ColourByClass)
     colourByClassCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.SecondaryPowerBar.ColourByClass = value BCDM:UpdateSecondaryPowerBar() RefreshSecondaryPowerBarGUISettings() end)
-    colourByClassCheckbox:SetRelativeWidth(isUnitDeathKnight and 0.33 or 0.25)
+    colourByClassCheckbox:SetRelativeWidth(isUnitMonkorDeathKnight and 0.33 or 0.25)
     toggleContainer:AddChild(colourByClassCheckbox)
 
     if isUnitDeathKnight then
@@ -1848,6 +1850,15 @@ local function CreateSecondaryPowerBarSettings(parentContainer)
         colourRunesBySpecCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.SecondaryPowerBar.ColourBySpec = value BCDM:UpdateSecondaryPowerBar() RefreshSecondaryPowerBarGUISettings() end)
         colourRunesBySpecCheckbox:SetRelativeWidth(0.33)
         toggleContainer:AddChild(colourRunesBySpecCheckbox)
+    end
+
+    if isUnitMonk then
+        local colourStaggerByStateCheckbox = AG:Create("CheckBox")
+        colourStaggerByStateCheckbox:SetLabel("Colour by Stagger Value")
+        colourStaggerByStateCheckbox:SetValue(BCDM.db.profile.SecondaryPowerBar.ColourByState)
+        colourStaggerByStateCheckbox:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.SecondaryPowerBar.ColourByState = value BCDM:UpdateSecondaryPowerBar() RefreshSecondaryPowerBarGUISettings() end)
+        colourStaggerByStateCheckbox:SetRelativeWidth(0.33)
+        toggleContainer:AddChild(colourStaggerByStateCheckbox)
     end
 
     local matchAnchorWidthCheckbox = AG:Create("CheckBox")
