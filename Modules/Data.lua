@@ -279,14 +279,20 @@ end
 local trinketCheckEvent = CreateFrame("Frame")
 trinketCheckEvent:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 trinketCheckEvent:RegisterEvent("PLAYER_LOGIN")
+trinketCheckEvent:RegisterEvent("PLAYER_ENTERING_WORLD")
 trinketCheckEvent:SetScript("OnEvent", function(self, event, slot)
     if InCombatLockdown() then return end
-    if slot == 13 or slot == 14 then
+    if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
+        BCDM:FetchEquippedTrinkets()
+        return
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" and (slot == 13 or slot == 14) then
         BCDM:FetchEquippedTrinkets()
     end
 end)
 
 function BCDM:FetchEquippedTrinkets()
+    if InCombatLockdown() then return end
+    if not BCDM.db.profile.CooldownManager.Trinket.Enabled then return end
     local trinketProfile = BCDM.db.profile.CooldownManager.Trinket
     local equippedItemIds = { GetInventoryItemID("player", 13), GetInventoryItemID("player", 14) }
     local usableCount = 0

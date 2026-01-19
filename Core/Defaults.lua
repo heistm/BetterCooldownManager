@@ -356,6 +356,7 @@ local Defaults = {
                 Items = {},
             },
             Trinket = {
+                Enabled = true,
                 IconSize = 38,
                 Layout = {"TOPLEFT", "UtilityCooldownViewer", "BOTTOMRIGHT", -1, -1},
                 Spacing = 1,

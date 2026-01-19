@@ -1150,6 +1150,15 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
     --     toggleContainer:AddChild(backgroundColourPicker)
     -- end
 
+    if viewerType == "Trinket" then
+        local enabledCheckbox = AG:Create("CheckBox")
+        enabledCheckbox:SetLabel("Enable Trinket Viewer")
+        enabledCheckbox:SetValue(BCDM.db.profile.CooldownManager.Trinket.Enabled)
+        enabledCheckbox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.profile.CooldownManager.Trinket.Enabled = value BCDM:UpdateCooldownViewer("Trinket") end)
+        enabledCheckbox:SetRelativeWidth(1)
+        ScrollFrame:AddChild(enabledCheckbox)
+    end
+
     local layoutContainer = AG:Create("InlineGroup")
     layoutContainer:SetTitle("Layout & Positioning")
     layoutContainer:SetFullWidth(true)
