@@ -239,7 +239,7 @@ function BCDM:UpdateCastBar()
     local GeneralDB = BCDM.db.profile.General
     local CastBarDB = BCDM.db.profile.CastBar
     local CastBar = BCDM.CastBar
-     local borderSize = BCDM.db.profile.CooldownManager.General.BorderSize
+    local borderSize = BCDM.db.profile.CooldownManager.General.BorderSize
     if not CastBar then return end
 
     BCDM.CastBar:SetBackdropColor(CastBarDB.BackgroundColour[1], CastBarDB.BackgroundColour[2], CastBarDB.BackgroundColour[3], CastBarDB.BackgroundColour[4])
@@ -338,6 +338,7 @@ end
 
 function BCDM:CreateTestCastBar()
     local CastBarDB = BCDM.db.profile.CastBar
+    local borderSize = BCDM.db.profile.CooldownManager.General.BorderSize
     if not BCDM.CastBar then return end
     if BCDM.CAST_BAR_TEST_MODE then
         BCDM.CastBar.SpellNameText:SetText(string.sub("Ethereal Portal", 1, BCDM.db.profile.CastBar.Text.SpellName.MaxCharacters))
@@ -347,17 +348,17 @@ function BCDM:CreateTestCastBar()
         BCDM.CastBar.CastTimeText:SetText("5.0")
         BCDM.CastBar.Icon:ClearAllPoints()
         if CastBarDB.Icon.Enabled == false then
-            BCDM.CastBar.Status:SetPoint("TOPLEFT", BCDM.CastBar, "TOPLEFT", 1, -1)
-            BCDM.CastBar.Status:SetPoint("BOTTOMRIGHT", BCDM.CastBar, "BOTTOMRIGHT", -1, 1)
+            BCDM.CastBar.Status:SetPoint("TOPLEFT", BCDM.CastBar, "TOPLEFT", borderSize, -borderSize)
+            BCDM.CastBar.Status:SetPoint("BOTTOMRIGHT", BCDM.CastBar, "BOTTOMRIGHT", -borderSize, borderSize)
         elseif CastBarDB.Icon.Layout == "LEFT" then
-            BCDM.CastBar.Icon:SetPoint("TOPLEFT", BCDM.CastBar, "TOPLEFT", 1, -1)
-            BCDM.CastBar.Icon:SetPoint("BOTTOMLEFT", BCDM.CastBar, "BOTTOMLEFT", 1, 1)
+            BCDM.CastBar.Icon:SetPoint("TOPLEFT", BCDM.CastBar, "TOPLEFT", borderSize, -borderSize)
+            BCDM.CastBar.Icon:SetPoint("BOTTOMLEFT", BCDM.CastBar, "BOTTOMLEFT", borderSize, borderSize)
             BCDM.CastBar.Status:SetPoint("TOPLEFT", BCDM.CastBar.Icon, "TOPRIGHT", 0, 0)
-            BCDM.CastBar.Status:SetPoint("BOTTOMRIGHT", BCDM.CastBar, "BOTTOMRIGHT", -1, 1)
+            BCDM.CastBar.Status:SetPoint("BOTTOMRIGHT", BCDM.CastBar, "BOTTOMRIGHT", -borderSize, borderSize)
         elseif CastBarDB.Icon.Layout == "RIGHT" then
-            BCDM.CastBar.Icon:SetPoint("TOPRIGHT", BCDM.CastBar, "TOPRIGHT", -1, -1)
-            BCDM.CastBar.Icon:SetPoint("BOTTOMRIGHT", BCDM.CastBar, "BOTTOMRIGHT", -1, 1)
-            BCDM.CastBar.Status:SetPoint("TOPLEFT", BCDM.CastBar, "TOPLEFT", 1, -1)
+            BCDM.CastBar.Icon:SetPoint("TOPRIGHT", BCDM.CastBar, "TOPRIGHT", -borderSize, -borderSize)
+            BCDM.CastBar.Icon:SetPoint("BOTTOMRIGHT", BCDM.CastBar, "BOTTOMRIGHT", -borderSize, borderSize)
+            BCDM.CastBar.Status:SetPoint("TOPLEFT", BCDM.CastBar, "TOPLEFT", borderSize, -borderSize)
             BCDM.CastBar.Status:SetPoint("BOTTOMRIGHT", BCDM.CastBar.Icon, "BOTTOMLEFT", 0, 0)
         end
         if CastBarDB.Enabled then BCDM.CastBar:Show() else BCDM.CastBar:Hide() end
