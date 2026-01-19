@@ -34,8 +34,8 @@ function BetterCooldownManager:OnEnable()
             BCDM:SetupAdditionalCustomCooldownViewer()
             BCDM:SetupCustomItemBar()
             BCDM:SetupTrinketBar()
-            BCDM:CreateCooldownViewerOverlays()
         end)
     end
+    BCDM:CreateCooldownViewerOverlays()
     BCDM:SetupEditModeManager()
 end
