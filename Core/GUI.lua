@@ -782,8 +782,7 @@ local function CreateGlobalSettings(parentContainer)
     globalSettingsContainer:AddChild(AnimationContainer)
 
     local smoothBarsCheckbox = AG:Create("CheckBox")
-    smoothBarsCheckbox:SetLabel("Smooth Bar Animation")
-    smoothBarsCheckbox:SetDescription("Enable smooth transitions for Power Bar, Secondary Power Bar, and Cast Bar")
+    smoothBarsCheckbox:SetLabel("Smooth Bar Animation - Applies to |cFF8080FFCast Bar|r, |cFF8080FFPower Bar|r and |cFF8080FFSecondary Power Bar|r.")
     smoothBarsCheckbox:SetValue(GeneralDB.Animation and GeneralDB.Animation.SmoothBars or false)
     smoothBarsCheckbox:SetCallback("OnValueChanged", function(self, _, value)
         if not GeneralDB.Animation then GeneralDB.Animation = {} end
