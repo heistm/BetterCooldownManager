@@ -212,6 +212,7 @@ local function StyleIcons()
                 if childFrame.DebuffBorder then childFrame.DebuffBorder:SetAlpha(0) end
                 childFrame:SetSize(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize)
                 BCDM:AddBorder(childFrame)
+                if not childFrame.layoutIndex then childFrame:SetShown(false) end
             end
         end
     end
@@ -314,6 +315,7 @@ local function SetupCenterBuffs()
 end
 
 function BCDM:SkinCooldownManager()
+    LEMO:LoadLayouts()
     C_CVar.SetCVar("cooldownViewerEnabled", 1)
     StyleIcons()
     StyleChargeCount()
@@ -322,7 +324,7 @@ function BCDM:SkinCooldownManager()
     SetHooks()
     SetupCenterBuffs()
     for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do C_Timer.After(0.1, function() ApplyCooldownText(viewerName) end) end
-    LEMO:LoadLayouts()
+    C_Timer.After(1, function() LEMO:ApplyChanges() end)
 end
 
 function BCDM:UpdateCooldownViewer(viewerType)
