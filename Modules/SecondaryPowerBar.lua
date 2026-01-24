@@ -656,6 +656,7 @@ end
 
 function BCDM:CreateSecondaryPowerBar()
     local generalDB = BCDM.db.profile.General
+    local powerBarDB = BCDM.db.profile.PowerBar
     local secondaryPowerBarDB = BCDM.db.profile.SecondaryPowerBar
 
     SetHooks()
@@ -671,9 +672,20 @@ function BCDM:CreateSecondaryPowerBar()
     end
     secondaryPowerBar:SetBackdropColor(secondaryPowerBarDB.BackgroundColour[1], secondaryPowerBarDB.BackgroundColour[2], secondaryPowerBarDB.BackgroundColour[3], secondaryPowerBarDB.BackgroundColour[4])
     secondaryPowerBar:SetSize(secondaryPowerBarDB.Width, secondaryPowerBarDB.Height)
-    secondaryPowerBar:SetPoint(secondaryPowerBarDB.Layout[1], _G[secondaryPowerBarDB.Layout[2]], secondaryPowerBarDB.Layout[3], secondaryPowerBarDB.Layout[4], secondaryPowerBarDB.Layout[5])
-    secondaryPowerBar:SetFrameStrata(secondaryPowerBarDB.FrameStrata)
 
+    if BCDM:RepositionSecondaryBar() then
+        BCDM.PowerBar:Hide()
+        secondaryPowerBar:ClearAllPoints()
+        secondaryPowerBar:SetPoint(powerBarDB.Layout[1], _G[powerBarDB.Layout[2]], powerBarDB.Layout[3], powerBarDB.Layout[4], powerBarDB.Layout[5])
+        secondaryPowerBar:SetHeight(powerBarDB.HeightWithoutSecondary)
+    else
+        secondaryPowerBar:ClearAllPoints()
+        secondaryPowerBar:SetPoint(secondaryPowerBarDB.Layout[1], _G[secondaryPowerBarDB.Layout[2]], secondaryPowerBarDB.Layout[3], secondaryPowerBarDB.Layout[4], secondaryPowerBarDB.Layout[5])
+        secondaryPowerBar:SetHeight(secondaryPowerBarDB.Height)
+        BCDM.PowerBar:Show()
+    end
+
+    secondaryPowerBar:SetFrameStrata(secondaryPowerBarDB.FrameStrata)
     secondaryPowerBar.Status = CreateFrame("StatusBar", nil, secondaryPowerBar)
     secondaryPowerBar.Status:SetPoint("TOPLEFT", secondaryPowerBar, "TOPLEFT", borderSize, -borderSize)
     secondaryPowerBar.Status:SetPoint("BOTTOMRIGHT", secondaryPowerBar, "BOTTOMRIGHT", -borderSize, borderSize)
@@ -753,6 +765,7 @@ end
 function BCDM:UpdateSecondaryPowerBar()
     local cooldownManagerDB = BCDM.db.profile
     local generalDB = cooldownManagerDB.General
+    local powerBarDB = cooldownManagerDB.PowerBar
     local secondaryPowerBarDB = BCDM.db.profile.SecondaryPowerBar
     local requiresSecondaryBar = DetectSecondaryPower()
     local borderSize = BCDM.db.profile.CooldownManager.General.BorderSize
@@ -770,8 +783,17 @@ function BCDM:UpdateSecondaryPowerBar()
     secondaryPowerBar:SetBackdropColor(secondaryPowerBarDB.BackgroundColour[1], secondaryPowerBarDB.BackgroundColour[2], secondaryPowerBarDB.BackgroundColour[3], secondaryPowerBarDB.BackgroundColour[4])
     secondaryPowerBar:SetSize(secondaryPowerBarDB.Width, secondaryPowerBarDB.Height)
 
-    secondaryPowerBar:ClearAllPoints()
-    secondaryPowerBar:SetPoint(secondaryPowerBarDB.Layout[1], _G[secondaryPowerBarDB.Layout[2]], secondaryPowerBarDB.Layout[3], secondaryPowerBarDB.Layout[4], secondaryPowerBarDB.Layout[5])
+    if BCDM:RepositionSecondaryBar() and BCDM.db.profile.SecondaryPowerBar.SwapToPowerBarPosition then
+        BCDM.PowerBar:Hide()
+        secondaryPowerBar:ClearAllPoints()
+        secondaryPowerBar:SetPoint(powerBarDB.Layout[1], _G[powerBarDB.Layout[2]], powerBarDB.Layout[3], powerBarDB.Layout[4], powerBarDB.Layout[5])
+        secondaryPowerBar:SetHeight(powerBarDB.HeightWithoutSecondary)
+    else
+        secondaryPowerBar:ClearAllPoints()
+        secondaryPowerBar:SetPoint(secondaryPowerBarDB.Layout[1], _G[secondaryPowerBarDB.Layout[2]], secondaryPowerBarDB.Layout[3], secondaryPowerBarDB.Layout[4], secondaryPowerBarDB.Layout[5])
+        secondaryPowerBar:SetHeight(secondaryPowerBarDB.Height)
+        BCDM.PowerBar:Show()
+    end
     secondaryPowerBar:SetFrameStrata(secondaryPowerBarDB.FrameStrata)
     secondaryPowerBar.Status:SetPoint("TOPLEFT", secondaryPowerBar, "TOPLEFT", borderSize, -borderSize)
     secondaryPowerBar.Status:SetPoint("BOTTOMRIGHT", secondaryPowerBar, "BOTTOMRIGHT", -borderSize, borderSize)

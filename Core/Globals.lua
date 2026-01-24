@@ -367,3 +367,21 @@ function BCDM:AdjustSpellList(spellId, adjustingHow, customDB)
     BCDM:NormalizeSpellLayoutIndices(customDB, playerClass, playerSpecialization)
     BCDM:UpdateAdditionalCustomCooldownViewer()
 end
+
+
+function BCDM:RepositionSecondaryBar()
+    local SpecsNeedingAltPower = {
+        PALADIN = { 66, 70 },           -- Ret
+        SHAMAN  = { 263 },              -- Ele, Enh
+        EVOKER  = { 1467, 1473 },       -- Dev, Aug
+        WARLOCK = { 265, 266, 267 },    -- Aff, Demo, Dest
+    }
+    local class = select(2, UnitClass("player"))
+    local specIndex = GetSpecialization()
+    if not specIndex then return false end
+    local specID = GetSpecializationInfo(specIndex)
+    local classSpecs = SpecsNeedingAltPower[class]
+    if not classSpecs then return false end
+    for _, requiredSpec in ipairs(classSpecs) do if specID == requiredSpec then return true end end
+    return false
+end
