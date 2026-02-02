@@ -236,6 +236,20 @@ local DEFENSIVE_SPELLS = {
     }
 }
 
+local CHANNEL_SPELLS = {
+    ["MAGE"] = {
+        ["ARCANE"] = {
+            [5143] = { isActive = true, baseTicks = 7, talentBonus = { [236628] = 2 }}  -- Arcane Missiles & Talent Amplification Check
+        },
+        ["FIRE"] = {
+            
+        },
+        ["FROST"] = {
+            
+        },
+    }
+}
+
 local ITEMS = {
     [241304] = { isActive = true, layoutIndex = 1 }, -- Silvermoon Healing Potion
     [241308] = { isActive = true, layoutIndex = 2 }, -- Light's Potential
@@ -297,16 +311,19 @@ function BCDM:FetchData(options)
 
     if includeSpells and DEFENSIVE_SPELLS[playerClass] and DEFENSIVE_SPELLS[playerClass][playerSpecialization] then
         for spellId, data in pairs(DEFENSIVE_SPELLS[playerClass][playerSpecialization]) do
-            dataList[#dataList + 1] = { id = spellId, data = data, entryType = "spell", groupOrder = 1 }
+            dataList[#dataList + 1] = { id = spellId, data = data, entryType = "spell", spellType = "defensive", groupOrder = 1 }
+        end
+        for spellID, data in pairs(CHANNEL_SPELLS[playerClass][playerSpecialization] or {}) do
+            dataList[#dataList + 1] = { id = spellID, data = data, entryType = "spell", spellType = "channel", groupOrder = 2 }
         end
         for racialId, data in pairs(RACIALS) do
-            dataList[#dataList + 1] = { id = racialId, data = data, entryType = "spell", groupOrder = 2 }
+            dataList[#dataList + 1] = { id = racialId, data = data, entryType = "spell", spellType = "racial", groupOrder = 3 }
         end
     end
 
     if includeItems and ITEMS then
         for itemId, data in pairs(ITEMS) do
-            dataList[#dataList + 1] = { id = itemId, data = data, entryType = "item", groupOrder = 3 }
+            dataList[#dataList + 1] = { id = itemId, data = data, entryType = "item", spellType = "item", groupOrder = 4 }
         end
     end
 
