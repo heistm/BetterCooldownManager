@@ -4,6 +4,15 @@ local Defaults = {
     global = {
         UseGlobalProfile = false,
         GlobalProfileName = "Default",
+        EditModeManager = {
+            SwapOnInstanceDifficulty = false,
+            RaidLayouts = {
+                Normal = "",
+                Heroic = "",
+                Mythic = "",
+                LFR = "",
+            },
+        },
     },
     profile = {
         General = {
@@ -64,22 +73,6 @@ local Defaults = {
                     }
                 }
             }
-        },
-        EditModeManager = {
-            SwapOnInstanceDifficulty = false,
-            SwapOnSpecializationChange = false,
-            RaidLayouts = {
-                Normal = "",
-                Heroic = "",
-                Mythic = "",
-                LFR = "",
-            },
-            SpecializationLayouts = {
-                [1] = "",
-                [2] = "",
-                [3] = "",
-                [4] = "",
-            },
         },
         CooldownManager = {
             Enable = true,

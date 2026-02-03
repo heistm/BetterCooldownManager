@@ -929,7 +929,7 @@ local function CreateGlobalSettings(parentContainer)
 end
 
 local function CreateEditModeManagerSettings(parentContainer)
-    local EditModeManagerDB = BCDM.db.profile.EditModeManager
+    local EditModeManagerDB = BCDM.db.global.EditModeManager
 
     local editModeManagerContainer = AG:Create("InlineGroup")
     editModeManagerContainer:SetTitle("Edit Mode Manager Settings")
@@ -944,21 +944,12 @@ local function CreateEditModeManagerSettings(parentContainer)
     editModeManagerContainer:AddChild(layoutContainer)
 
     local raidLayoutDropdown = {}
-    local specLayoutDropdown = {}
     local layoutOrder = {"LFR", "Normal", "Heroic", "Mythic"}
-    local numSpecs = GetNumSpecializations()
 
     local function RefreshRaidLayoutSettings()
         local isDisabled = not EditModeManagerDB.SwapOnInstanceDifficulty
         for i = 1, #layoutOrder do
             raidLayoutDropdown[i]:SetDisabled(isDisabled)
-        end
-    end
-
-    local function RefreshSpecializationSettings()
-        local isDisabled = not EditModeManagerDB.SwapOnSpecializationChange
-        for i = 1, numSpecs do
-            specLayoutDropdown[i]:SetDisabled(isDisabled)
         end
     end
 
@@ -999,44 +990,7 @@ local function CreateEditModeManagerSettings(parentContainer)
         raidDifficultyContainer:AddChild(raidLayoutDropdown[i])
     end
 
-    local specializationContainer = AG:Create("InlineGroup")
-    specializationContainer:SetTitle("Specialization Settings")
-    specializationContainer:SetFullWidth(true)
-    specializationContainer:SetLayout("Flow")
-    layoutContainer:AddChild(specializationContainer)
-
-    CreateInformationTag(specializationContainer, "Define |cFF8080FFEdit Mode Layouts|r for Different Specializations.")
-
-    local swapOnSpecializationChangeCheckbox = AG:Create("CheckBox")
-    swapOnSpecializationChangeCheckbox:SetLabel("Swap on Specialization Change")
-    swapOnSpecializationChangeCheckbox:SetValue(EditModeManagerDB.SwapOnSpecializationChange)
-    swapOnSpecializationChangeCheckbox:SetCallback("OnValueChanged", function(_, _, value)
-        EditModeManagerDB.SwapOnSpecializationChange = value
-        RefreshSpecializationSettings()
-        BCDM:UpdateLayout()
-        BCDM:UpdateBCDM()
-    end)
-    swapOnSpecializationChangeCheckbox:SetRelativeWidth(1)
-    specializationContainer:AddChild(swapOnSpecializationChangeCheckbox)
-
-    for i = 1, numSpecs do
-        local _, specName = GetSpecializationInfo(i)
-        specLayoutDropdown[i] = AG:Create("Dropdown")
-        specLayoutDropdown[i]:SetLabel(specName .. " Layout")
-        specLayoutDropdown[i]:SetList(AvailableLayouts)
-        specLayoutDropdown[i]:SetText(EditModeManagerDB.SpecializationLayouts[i])
-        specLayoutDropdown[i]:SetRelativeWidth(numSpecs == 2 and 0.5 or numSpecs == 3 and 0.33 or 0.25)
-        specLayoutDropdown[i]:SetCallback("OnEnterPressed", function(self)
-            local input = self:GetText()
-            EditModeManagerDB.SpecializationLayouts[i] = input
-            BCDM:UpdateLayout()
-            BCDM:UpdateBCDM()
-        end)
-        specializationContainer:AddChild(specLayoutDropdown[i])
-    end
-
     RefreshRaidLayoutSettings()
-    RefreshSpecializationSettings()
 end
 
 local function CreateCooldownViewerTextSettings(parentContainer, viewerType)
