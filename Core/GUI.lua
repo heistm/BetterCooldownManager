@@ -191,6 +191,248 @@ local function ParseDataDropdownValue(value)
     return entryType, tonumber(id)
 end
 
+local function NormalizeSpecToken(specToken)
+    if not specToken then return end
+    return tostring(specToken):gsub(" ", ""):upper()
+end
+
+local function GetClassIdByToken(classToken)
+    if not classToken then return end
+
+    local function MatchesClassInfo(classInfo, classId)
+        if classInfo and classInfo.classFile == classToken then return classId, classInfo.className end
+    end
+
+    if CLASS_SORT_ORDER and C_ClassInfo and C_ClassInfo.GetClassInfo then
+        for _, classId in ipairs(CLASS_SORT_ORDER) do
+            local classInfo = C_ClassInfo.GetClassInfo(classId)
+            local matchId, matchName = MatchesClassInfo(classInfo, classId)
+            if matchId then
+                return matchId, matchName
+            end
+        end
+    end
+
+    local numClasses = (C_ClassInfo and C_ClassInfo.GetNumClasses and C_ClassInfo.GetNumClasses()) or (GetNumClasses and GetNumClasses())
+    if numClasses then
+        for classId = 1, numClasses do
+            local classInfo = C_ClassInfo and C_ClassInfo.GetClassInfo and C_ClassInfo.GetClassInfo(classId)
+            if classInfo then
+                local matchId, matchName = MatchesClassInfo(classInfo, classId)
+                if matchId then return matchId, matchName end
+            elseif GetClassInfo then
+                local className, classFile = GetClassInfo(classId)
+                if classFile == classToken then return classId, className end
+            end
+        end
+    end
+end
+
+local function GetSpecDisplayName(classId, specToken)
+    if not classId or not specToken or not C_SpecializationInfo or not C_SpecializationInfo.GetNumSpecializationsForClassID or not GetSpecializationInfoForClassID then return end
+    local numSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(classId)
+    if not numSpecs then return end
+    for i = 1, numSpecs do
+        local specID, specName, _, specIcon = GetSpecializationInfoForClassID(classId, i)
+        if type(specID) == "table" then
+            local info = specID
+            specID = info.specID or info.id
+            specName = info.name or specName
+            specIcon = info.icon or specIcon
+        end
+        if specID and (not specIcon) and C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfoByID then
+            local info = C_SpecializationInfo.GetSpecializationInfoByID(specID)
+            if info then
+                specName = specName or info.name
+                specIcon = specIcon or info.icon
+            end
+        end
+        if specName and NormalizeSpecToken(specName) == specToken then
+            return specName, i, specIcon
+        end
+    end
+end
+
+local function TitleCaseToken(token)
+    if not token then return end
+    token = tostring(token):lower()
+    return token:gsub("^%l", string.upper)
+end
+
+local function FormatClassLabel(classLabel, classToken)
+    if not classToken or not CLASS_ICON_TCOORDS or not CLASS_ICON_TCOORDS[classToken] then
+        return classLabel
+    end
+    local coords = CLASS_ICON_TCOORDS[classToken]
+    local icon = string.format("|TInterface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES:16:16:0:0:256:256:%d:%d:%d:%d|t ", coords[1] * 256, coords[2] * 256, coords[3] * 256, coords[4] * 256)
+    return icon .. classLabel
+end
+
+local function FormatSpecLabel(specName, specIcon, classToken)
+    local colourPrefix = classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classToken] and RAID_CLASS_COLORS[classToken].colorStr and ("|c" .. RAID_CLASS_COLORS[classToken].colorStr)
+    local colourSuffix = colourPrefix and "|r" or ""
+    local colouredName = colourPrefix and (colourPrefix .. specName .. colourSuffix) or specName
+    if specIcon then
+        return string.format("|T%s:16:16|t %s", tostring(specIcon), colouredName)
+    end
+    return colouredName
+end
+
+local function BuildClassSpecDropdownMenuData(spellDB)
+    local classes = {}
+    local valueMap = {}
+    if not spellDB then return classes, valueMap end
+
+    local orderedClasses = {}
+    local seenClasses = {}
+
+    if CLASS_SORT_ORDER and C_ClassInfo and C_ClassInfo.GetClassInfo then
+        for _, classId in ipairs(CLASS_SORT_ORDER) do
+            local classInfo = C_ClassInfo.GetClassInfo(classId)
+            if classInfo and spellDB[classInfo.classFile] then
+                orderedClasses[#orderedClasses + 1] = classInfo.classFile
+                seenClasses[classInfo.classFile] = true
+            end
+        end
+    end
+
+    local extraClasses = {}
+    for classToken in pairs(spellDB) do
+        if not seenClasses[classToken] then
+            extraClasses[#extraClasses + 1] = classToken
+        end
+    end
+    table.sort(extraClasses)
+    for _, classToken in ipairs(extraClasses) do
+        orderedClasses[#orderedClasses + 1] = classToken
+    end
+
+    for _, classToken in ipairs(orderedClasses) do
+        local classId = GetClassIdByToken(classToken)
+        local specs = spellDB[classToken] or {}
+        local orderedSpecs = {}
+        local seenSpecs = {}
+
+        if classId then
+            local numSpecs = C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID and C_SpecializationInfo.GetNumSpecializationsForClassID(classId)
+            if numSpecs then
+                for i = 1, numSpecs do
+                    local _, specName = GetSpecializationInfoForClassID(classId, i)
+                    if specName then
+                        local specToken = NormalizeSpecToken(specName)
+                        if specToken and specs[specToken] then
+                            orderedSpecs[#orderedSpecs + 1] = specToken
+                            seenSpecs[specToken] = true
+                        end
+                    end
+                end
+            end
+        end
+
+        local extraSpecs = {}
+        for specToken in pairs(specs) do
+            if not seenSpecs[specToken] then
+                extraSpecs[#extraSpecs + 1] = specToken
+            end
+        end
+        table.sort(extraSpecs)
+        for _, specToken in ipairs(extraSpecs) do
+            orderedSpecs[#orderedSpecs + 1] = specToken
+        end
+
+        local classEntry = {
+            classToken = classToken,
+            classLabel = FormatClassLabel(ClassToPrettyClass[classToken] or classToken, classToken),
+            specs = {},
+        }
+
+        for _, specToken in ipairs(orderedSpecs) do
+            local specName, _, specIcon = GetSpecDisplayName(classId, specToken)
+            if not specName then
+                specName = TitleCaseToken(specToken) or specToken
+            end
+            local specLabel = FormatSpecLabel(specName, specIcon, classToken)
+            local value = classToken .. ":" .. specToken
+            classEntry.specs[#classEntry.specs + 1] = {
+                specToken = specToken,
+                specLabel = specLabel,
+                value = value,
+            }
+            valueMap[value] = specLabel
+        end
+        classes[#classes + 1] = classEntry
+    end
+
+    return classes, valueMap
+end
+
+local function ParseClassSpecDropdownValue(value)
+    if not value then return end
+    local classToken, specToken = string.match(value, "^(%u+):(%u+)$")
+    if not classToken or not specToken then return end
+    return classToken, specToken
+end
+
+local function PopulateClassSpecDropdown(dropdown, spellDB)
+    if not dropdown then return end
+    local classes, valueMap = BuildClassSpecDropdownMenuData(spellDB)
+    dropdown.list = valueMap or {}
+    dropdown.pullout:Clear()
+    dropdown.hasClose = nil
+
+    for _, classEntry in ipairs(classes) do
+        local classItem = AG:Create("Dropdown-Item-Menu")
+        classItem:SetText(classEntry.classLabel)
+        classItem.userdata.obj = dropdown
+        classItem.SetValue = function() end
+
+        local submenu = AG:Create("Dropdown-Pullout")
+        submenu:SetHideOnLeave(true)
+
+        for _, specEntry in ipairs(classEntry.specs) do
+            local specItem = AG:Create("Dropdown-Item-Execute")
+            specItem:SetText(specEntry.specLabel)
+            specItem.userdata.obj = dropdown
+            specItem.userdata.value = specEntry.value
+            specItem.SetValue = function() end
+            specItem:SetCallback("OnClick", function(item)
+                local value = item and item.userdata and item.userdata.value
+                if not value then return end
+                dropdown:SetValue(value)
+                dropdown:Fire("OnValueChanged", value)
+            end)
+            submenu:AddItem(specItem)
+        end
+
+        classItem:SetMenu(submenu)
+        dropdown.pullout:AddItem(classItem)
+    end
+end
+
+local function ResolveSpellClassSpecSelection(customDB, spellDB)
+    if not spellDB then return end
+    BCDMGUI.SelectedClassSpec = BCDMGUI.SelectedClassSpec or {}
+    local stored = BCDMGUI.SelectedClassSpec[customDB]
+    if stored and spellDB[stored.class] and spellDB[stored.class][stored.spec] then
+        return stored.class, stored.spec
+    end
+
+    local playerClass = select(2, UnitClass("player"))
+    local playerSpecName = select(2, GetSpecializationInfo(GetSpecialization()))
+    local playerSpecToken = NormalizeSpecToken(playerSpecName)
+    if playerClass and playerSpecToken and spellDB[playerClass] and spellDB[playerClass][playerSpecToken] then
+        BCDMGUI.SelectedClassSpec[customDB] = { class = playerClass, spec = playerSpecToken }
+        return playerClass, playerSpecToken
+    end
+
+    for classToken, specs in pairs(spellDB) do
+        for specToken in pairs(specs) do
+            BCDMGUI.SelectedClassSpec[customDB] = { class = classToken, spec = specToken }
+            return classToken, specToken
+        end
+    end
+end
+
 local function ShowItemTooltip(owner, itemId)
     if not owner or not itemId then return end
     GameTooltip:SetOwner(owner, "ANCHOR_CURSOR")
@@ -1053,12 +1295,11 @@ end
 local function CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
     local SpellDB = BCDM.db.profile.CooldownManager[customDB].Spells
 
-    local playerClass = select(2, UnitClass("player"))
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local selectedClass, selectedSpec = ResolveSpellClassSpecSelection(customDB, SpellDB)
 
     local AddRacialsToAllClassesButton = AG:Create("Button")
     AddRacialsToAllClassesButton:SetText("Add Racials")
-    AddRacialsToAllClassesButton:SetRelativeWidth(0.5)
+    AddRacialsToAllClassesButton:SetRelativeWidth(0.33)
     AddRacialsToAllClassesButton:SetCallback("OnClick", function() BCDM:AddRacials(customDB) BCDM:UpdateCooldownViewer(customDB) parentContainer:ReleaseChildren() CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh) end)
     AddRacialsToAllClassesButton:SetCallback("OnEnter", function(widget) GameTooltip:SetOwner(widget.frame, "ANCHOR_CURSOR") GameTooltip:SetText("This will add all racials to every single class & specialization on your profile.", 1, 1, 1, 1, false) GameTooltip:Show() end)
     AddRacialsToAllClassesButton:SetCallback("OnLeave", function() GameTooltip:Hide() end)
@@ -1066,7 +1307,7 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
 
     local RemoveRacialsFromAllClassesButton = AG:Create("Button")
     RemoveRacialsFromAllClassesButton:SetText("Remove Racials")
-    RemoveRacialsFromAllClassesButton:SetRelativeWidth(0.5)
+    RemoveRacialsFromAllClassesButton:SetRelativeWidth(0.33)
     RemoveRacialsFromAllClassesButton:SetCallback("OnClick", function()
         BCDM:RemoveRacials(customDB)
         BCDM:UpdateCooldownViewer(customDB)
@@ -1077,6 +1318,24 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
     RemoveRacialsFromAllClassesButton:SetCallback("OnLeave", function() GameTooltip:Hide() end)
     parentContainer:AddChild(RemoveRacialsFromAllClassesButton)
 
+    local classSpecDropdown = AG:Create("Dropdown")
+    classSpecDropdown:SetLabel("Select a Class & Specialization")
+    PopulateClassSpecDropdown(classSpecDropdown, SpellDB)
+    if selectedClass and selectedSpec then
+        classSpecDropdown:SetValue(selectedClass .. ":" .. selectedSpec)
+    end
+    classSpecDropdown:SetCallback("OnValueChanged", function(_, _, value)
+        local classToken, specToken = ParseClassSpecDropdownValue(value)
+        if classToken and specToken then
+            BCDMGUI.SelectedClassSpec = BCDMGUI.SelectedClassSpec or {}
+            BCDMGUI.SelectedClassSpec[customDB] = { class = classToken, spec = specToken }
+            parentContainer:ReleaseChildren()
+            CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+        end
+    end)
+    classSpecDropdown:SetRelativeWidth(0.33)
+    parentContainer:AddChild(classSpecDropdown)
+
     local addSpellEditBox = AG:Create("EditBox")
     addSpellEditBox:SetLabel("Add Spell by ID or Spell Name")
     addSpellEditBox:SetRelativeWidth(0.5)
@@ -1084,7 +1343,7 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
         local input = self:GetText()
         local spellId = FetchSpellID(input)
         if spellId then
-            BCDM:AdjustSpellList(spellId, "add", customDB)
+            BCDM:AdjustSpellList(spellId, "add", customDB, selectedClass, selectedSpec)
             BCDM:UpdateCooldownViewer(customDB)
             parentContainer:ReleaseChildren()
             CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
@@ -1095,12 +1354,12 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
 
     local dataListDropdown = AG:Create("Dropdown")
     dataListDropdown:SetLabel("Spell List")
-    dataListDropdown:SetList(BuildDataDropdownList(BCDM:FetchData({ includeSpells = true })))
+    dataListDropdown:SetList(BuildDataDropdownList(BCDM:FetchData({ includeSpells = true, classToken = selectedClass, specToken = selectedSpec })))
     dataListDropdown:SetValue(nil)
     dataListDropdown:SetCallback("OnValueChanged", function(_, _, value)
         local entryType, entryId = ParseDataDropdownValue(value)
         if entryType == "spell" and entryId then
-            BCDM:AdjustSpellList(entryId, "add", customDB)
+            BCDM:AdjustSpellList(entryId, "add", customDB, selectedClass, selectedSpec)
             BCDM:UpdateCooldownViewer(customDB)
             parentContainer:ReleaseChildren()
             CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
@@ -1109,12 +1368,11 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
     dataListDropdown:SetRelativeWidth(0.5)
     parentContainer:AddChild(dataListDropdown)
 
-
-    if SpellDB[playerClass] and SpellDB[playerClass][playerSpecialization] then
+    if selectedClass and selectedSpec and SpellDB[selectedClass] and SpellDB[selectedClass][selectedSpec] then
 
         local sortedSpells = {}
 
-        for spellId, data in pairs(SpellDB[playerClass][playerSpecialization]) do table.insert(sortedSpells, {id = spellId, data = data}) end
+        for spellId, data in pairs(SpellDB[selectedClass][selectedSpec]) do table.insert(sortedSpells, {id = spellId, data = data}) end
         table.sort(sortedSpells, function(a, b) return a.data.layoutIndex < b.data.layoutIndex end)
 
         for _, spell in ipairs(sortedSpells) do
@@ -1124,7 +1382,10 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
             local spellCheckbox = AG:Create("CheckBox")
             spellCheckbox:SetLabel("[" .. (data.layoutIndex or "?") .. "] " .. (FetchSpellInformation(spellId) or ("SpellID: " .. spellId)))
             spellCheckbox:SetValue(data.isActive)
-            spellCheckbox:SetCallback("OnValueChanged", function(_, _, value) SpellDB[playerClass][playerSpecialization][spellId].isActive = value BCDM:UpdateCooldownViewer("Custom") end)
+            spellCheckbox:SetCallback("OnValueChanged", function(_, _, value)
+                SpellDB[selectedClass][selectedSpec][spellId].isActive = value
+                BCDM:UpdateCooldownViewer(customDB)
+            end)
             spellCheckbox:SetCallback("OnEnter", function(widget) ShowSpellTooltip(widget.frame, spellId) end)
             spellCheckbox:SetCallback("OnLeave", function() GameTooltip:Hide() end)
             spellCheckbox:SetRelativeWidth(0.6)
@@ -1133,20 +1394,28 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
             local moveUpButton = AG:Create("Button")
             moveUpButton:SetText("Up")
             moveUpButton:SetRelativeWidth(0.1333)
-            moveUpButton:SetCallback("OnClick", function() BCDM:AdjustSpellLayoutIndex(-1, spellId, customDB) parentContainer:ReleaseChildren() CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh) end)
+            moveUpButton:SetCallback("OnClick", function()
+                BCDM:AdjustSpellLayoutIndex(-1, spellId, customDB, selectedClass, selectedSpec)
+                parentContainer:ReleaseChildren()
+                CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+            end)
             parentContainer:AddChild(moveUpButton)
 
             local moveDownButton = AG:Create("Button")
             moveDownButton:SetText("Down")
             moveDownButton:SetRelativeWidth(0.1333)
-            moveDownButton:SetCallback("OnClick", function() BCDM:AdjustSpellLayoutIndex(1, spellId, customDB) parentContainer:ReleaseChildren() CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh) end)
+            moveDownButton:SetCallback("OnClick", function()
+                BCDM:AdjustSpellLayoutIndex(1, spellId, customDB, selectedClass, selectedSpec)
+                parentContainer:ReleaseChildren()
+                CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+            end)
             parentContainer:AddChild(moveDownButton)
 
             local removeSpellButton = AG:Create("Button")
             removeSpellButton:SetText("X")
             removeSpellButton:SetRelativeWidth(0.1333)
             removeSpellButton:SetCallback("OnClick", function()
-                BCDM:AdjustSpellList(spellId, "remove", customDB)
+                BCDM:AdjustSpellList(spellId, "remove", customDB, selectedClass, selectedSpec)
                 BCDM:UpdateCooldownViewer(customDB)
                 parentContainer:ReleaseChildren()
                 CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)

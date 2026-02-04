@@ -340,13 +340,19 @@ function BCDM:CreatePrompt(title, text, onAccept, onCancel, acceptText, cancelTe
     return promptDialog
 end
 
-function BCDM:AdjustSpellLayoutIndex(direction, spellId, customDB)
+local function NormalizeSpecToken(specToken)
+    if not specToken then return end
+    return tostring(specToken):gsub(" ", ""):upper()
+end
+
+function BCDM:AdjustSpellLayoutIndex(direction, spellId, customDB, targetClass, targetSpec)
     local CooldownManagerDB = BCDM.db.profile
     local CustomDB = CooldownManagerDB.CooldownManager[customDB]
-    local playerClass = select(2, UnitClass("player"))
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local playerClass = targetClass or select(2, UnitClass("player"))
+    local playerSpecialization = NormalizeSpecToken(targetSpec) or NormalizeSpecToken(select(2, GetSpecializationInfo(GetSpecialization())))
     local DefensiveSpells = CustomDB.Spells
 
+    if not playerClass or not playerSpecialization then return end
     if not DefensiveSpells[playerClass] or not DefensiveSpells[playerClass][playerSpecialization] or not DefensiveSpells[playerClass][playerSpecialization][spellId] then return end
 
     local currentIndex = DefensiveSpells[playerClass][playerSpecialization][spellId].layoutIndex
@@ -401,13 +407,14 @@ function BCDM:NormalizeSpellLayoutIndices(customDB, playerClass, playerSpecializ
     end
 end
 
-function BCDM:AdjustSpellList(spellId, adjustingHow, customDB)
+function BCDM:AdjustSpellList(spellId, adjustingHow, customDB, targetClass, targetSpec)
     local CooldownManagerDB = BCDM.db.profile
     local CustomDB = CooldownManagerDB.CooldownManager[customDB]
-    local playerClass = select(2, UnitClass("player"))
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local playerClass = targetClass or select(2, UnitClass("player"))
+    local playerSpecialization = NormalizeSpecToken(targetSpec) or NormalizeSpecToken(select(2, GetSpecializationInfo(GetSpecialization())))
     local DefensiveSpells = CustomDB.Spells
 
+    if not playerClass or not playerSpecialization then return end
     if not DefensiveSpells[playerClass] then
         DefensiveSpells[playerClass] = {}
     end

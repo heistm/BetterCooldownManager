@@ -292,8 +292,13 @@ function BCDM:FetchData(options)
     local includeItems = options.includeItems
     local dataList = {}
 
-    local _, playerClass = UnitClass("player")
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local function NormalizeSpecToken(specToken)
+        if not specToken then return end
+        return tostring(specToken):gsub(" ", ""):upper()
+    end
+
+    local playerClass = options.classToken or select(2, UnitClass("player"))
+    local playerSpecialization = NormalizeSpecToken(options.specToken) or NormalizeSpecToken(select(2, GetSpecializationInfo(GetSpecialization())))
 
     if includeSpells and DEFENSIVE_SPELLS[playerClass] and DEFENSIVE_SPELLS[playerClass][playerSpecialization] then
         for spellId, data in pairs(DEFENSIVE_SPELLS[playerClass][playerSpecialization]) do
