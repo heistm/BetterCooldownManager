@@ -62,6 +62,20 @@ local ClassToPrettyClass = {
     ["EVOKER"]      = "|cFF33937FEvoker|r",
 }
 
+local ClassesWithSecondaryPower = {
+    ["MONK"]        = true,
+    ["ROGUE"]       = true,
+    ["DRUID"]       = true,
+    ["PALADIN"]     = true,
+    ["WARLOCK"]     = true,
+    ["MAGE"]        = true,
+    ["EVOKER"]      = true,
+    ["DEATHKNIGHT"] = true,
+    ["DEMONHUNTER"] = true,
+    ["SHAMAN"]      = true,
+    ["PRIEST"]      = true,
+}
+
 local function DeepDisable(widget, disabled, skipWidget)
     if widget == skipWidget then return end
     if widget.SetDisabled then widget:SetDisabled(disabled) end
@@ -76,6 +90,8 @@ local function DetectSecondaryPower()
     local class = select(2, UnitClass("player"))
     local spec  = GetSpecialization()
     local specID = GetSpecializationInfo(spec)
+    local secondaryPowerBarDB = BCDM.db and BCDM.db.profile and BCDM.db.profile.SecondaryPowerBar
+    local showMana = secondaryPowerBarDB and (secondaryPowerBarDB.ShowMana or secondaryPowerBarDB.ShowManaBar)
     if class == "MONK" then
         if specID == 268 then return true end
         if specID == 269 then return true end
@@ -98,15 +114,15 @@ local function DetectSecondaryPower()
         if specID == 1480 then return true end
     elseif class == "SHAMAN" then
         if specID == 263 then return true end
+        if specID == 262 and showMana then return true end
+    elseif class == "PRIEST" then
+        if specID == 258 and showMana then return true end
     end
     return false
 end
 
 local function GenerateSupportText(parentFrame)
     local SupportOptions = {
-        -- "Support Me on |TInterface\\AddOns\\UnhaltedUnitFrames\\Media\\Support\\Ko-Fi.png:13:18|t |cFF8080FFKo-Fi|r!",
-        -- "Support Me on |TInterface\\AddOns\\UnhaltedUnitFrames\\Media\\Support\\Patreon.png:14:14|t |cFF8080FFPatreon|r!",
-        -- "|TInterface\\AddOns\\UnhaltedUnitFrames\\Media\\Support\\PayPal.png:20:18|t |cFF8080FFPayPal Donations|r are appreciated!",
         "Join the |TInterface\\AddOns\\UnhaltedUnitFrames\\Media\\Support\\Discord.png:18:18|t |cFF8080FFDiscord|r Community!",
         "Report Issues / Feedback on |TInterface\\AddOns\\UnhaltedUnitFrames\\Media\\Support\\GitHub.png:18:18|t |cFF8080FFGitHub|r!",
         "Follow Me on |TInterface\\AddOns\\UnhaltedUnitFrames\\Media\\Support\\Twitch.png:18:14|t |cFF8080FFTwitch|r!",
@@ -173,6 +189,248 @@ local function ParseDataDropdownValue(value)
     local entryType, id = string.match(value, "^(%a+):(%d+)$")
     if not entryType then return end
     return entryType, tonumber(id)
+end
+
+local function NormalizeSpecToken(specToken)
+    if not specToken then return end
+    return tostring(specToken):gsub(" ", ""):upper()
+end
+
+local function GetClassIdByToken(classToken)
+    if not classToken then return end
+
+    local function MatchesClassInfo(classInfo, classId)
+        if classInfo and classInfo.classFile == classToken then return classId, classInfo.className end
+    end
+
+    if CLASS_SORT_ORDER and C_ClassInfo and C_ClassInfo.GetClassInfo then
+        for _, classId in ipairs(CLASS_SORT_ORDER) do
+            local classInfo = C_ClassInfo.GetClassInfo(classId)
+            local matchId, matchName = MatchesClassInfo(classInfo, classId)
+            if matchId then
+                return matchId, matchName
+            end
+        end
+    end
+
+    local numClasses = (C_ClassInfo and C_ClassInfo.GetNumClasses and C_ClassInfo.GetNumClasses()) or (GetNumClasses and GetNumClasses())
+    if numClasses then
+        for classId = 1, numClasses do
+            local classInfo = C_ClassInfo and C_ClassInfo.GetClassInfo and C_ClassInfo.GetClassInfo(classId)
+            if classInfo then
+                local matchId, matchName = MatchesClassInfo(classInfo, classId)
+                if matchId then return matchId, matchName end
+            elseif GetClassInfo then
+                local className, classFile = GetClassInfo(classId)
+                if classFile == classToken then return classId, className end
+            end
+        end
+    end
+end
+
+local function GetSpecDisplayName(classId, specToken)
+    if not classId or not specToken or not C_SpecializationInfo or not C_SpecializationInfo.GetNumSpecializationsForClassID or not GetSpecializationInfoForClassID then return end
+    local numSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(classId)
+    if not numSpecs then return end
+    for i = 1, numSpecs do
+        local specID, specName, _, specIcon = GetSpecializationInfoForClassID(classId, i)
+        if type(specID) == "table" then
+            local info = specID
+            specID = info.specID or info.id
+            specName = info.name or specName
+            specIcon = info.icon or specIcon
+        end
+        if specID and (not specIcon) and C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfoByID then
+            local info = C_SpecializationInfo.GetSpecializationInfoByID(specID)
+            if info then
+                specName = specName or info.name
+                specIcon = specIcon or info.icon
+            end
+        end
+        if specName and NormalizeSpecToken(specName) == specToken then
+            return specName, i, specIcon
+        end
+    end
+end
+
+local function TitleCaseToken(token)
+    if not token then return end
+    token = tostring(token):lower()
+    return token:gsub("^%l", string.upper)
+end
+
+local function FormatClassLabel(classLabel, classToken)
+    if not classToken or not CLASS_ICON_TCOORDS or not CLASS_ICON_TCOORDS[classToken] then
+        return classLabel
+    end
+    local coords = CLASS_ICON_TCOORDS[classToken]
+    local icon = string.format("|TInterface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES:16:16:0:0:256:256:%d:%d:%d:%d|t ", coords[1] * 256, coords[2] * 256, coords[3] * 256, coords[4] * 256)
+    return icon .. classLabel
+end
+
+local function FormatSpecLabel(specName, specIcon, classToken)
+    local colourPrefix = classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classToken] and RAID_CLASS_COLORS[classToken].colorStr and ("|c" .. RAID_CLASS_COLORS[classToken].colorStr)
+    local colourSuffix = colourPrefix and "|r" or ""
+    local colouredName = colourPrefix and (colourPrefix .. specName .. colourSuffix) or specName
+    if specIcon then
+        return string.format("|T%s:16:16|t %s", tostring(specIcon), colouredName)
+    end
+    return colouredName
+end
+
+local function BuildClassSpecDropdownMenuData(spellDB)
+    local classes = {}
+    local valueMap = {}
+    if not spellDB then return classes, valueMap end
+
+    local orderedClasses = {}
+    local seenClasses = {}
+
+    if CLASS_SORT_ORDER and C_ClassInfo and C_ClassInfo.GetClassInfo then
+        for _, classId in ipairs(CLASS_SORT_ORDER) do
+            local classInfo = C_ClassInfo.GetClassInfo(classId)
+            if classInfo and spellDB[classInfo.classFile] then
+                orderedClasses[#orderedClasses + 1] = classInfo.classFile
+                seenClasses[classInfo.classFile] = true
+            end
+        end
+    end
+
+    local extraClasses = {}
+    for classToken in pairs(spellDB) do
+        if not seenClasses[classToken] then
+            extraClasses[#extraClasses + 1] = classToken
+        end
+    end
+    table.sort(extraClasses)
+    for _, classToken in ipairs(extraClasses) do
+        orderedClasses[#orderedClasses + 1] = classToken
+    end
+
+    for _, classToken in ipairs(orderedClasses) do
+        local classId = GetClassIdByToken(classToken)
+        local specs = spellDB[classToken] or {}
+        local orderedSpecs = {}
+        local seenSpecs = {}
+
+        if classId then
+            local numSpecs = C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID and C_SpecializationInfo.GetNumSpecializationsForClassID(classId)
+            if numSpecs then
+                for i = 1, numSpecs do
+                    local _, specName = GetSpecializationInfoForClassID(classId, i)
+                    if specName then
+                        local specToken = NormalizeSpecToken(specName)
+                        if specToken and specs[specToken] then
+                            orderedSpecs[#orderedSpecs + 1] = specToken
+                            seenSpecs[specToken] = true
+                        end
+                    end
+                end
+            end
+        end
+
+        local extraSpecs = {}
+        for specToken in pairs(specs) do
+            if not seenSpecs[specToken] then
+                extraSpecs[#extraSpecs + 1] = specToken
+            end
+        end
+        table.sort(extraSpecs)
+        for _, specToken in ipairs(extraSpecs) do
+            orderedSpecs[#orderedSpecs + 1] = specToken
+        end
+
+        local classEntry = {
+            classToken = classToken,
+            classLabel = FormatClassLabel(ClassToPrettyClass[classToken] or classToken, classToken),
+            specs = {},
+        }
+
+        for _, specToken in ipairs(orderedSpecs) do
+            local specName, _, specIcon = GetSpecDisplayName(classId, specToken)
+            if not specName then
+                specName = TitleCaseToken(specToken) or specToken
+            end
+            local specLabel = FormatSpecLabel(specName, specIcon, classToken)
+            local value = classToken .. ":" .. specToken
+            classEntry.specs[#classEntry.specs + 1] = {
+                specToken = specToken,
+                specLabel = specLabel,
+                value = value,
+            }
+            valueMap[value] = specLabel
+        end
+        classes[#classes + 1] = classEntry
+    end
+
+    return classes, valueMap
+end
+
+local function ParseClassSpecDropdownValue(value)
+    if not value then return end
+    local classToken, specToken = string.match(value, "^(%u+):(%u+)$")
+    if not classToken or not specToken then return end
+    return classToken, specToken
+end
+
+local function PopulateClassSpecDropdown(dropdown, spellDB)
+    if not dropdown then return end
+    local classes, valueMap = BuildClassSpecDropdownMenuData(spellDB)
+    dropdown.list = valueMap or {}
+    dropdown.pullout:Clear()
+    dropdown.hasClose = nil
+
+    for _, classEntry in ipairs(classes) do
+        local classItem = AG:Create("Dropdown-Item-Menu")
+        classItem:SetText(classEntry.classLabel)
+        classItem.userdata.obj = dropdown
+        classItem.SetValue = function() end
+
+        local submenu = AG:Create("Dropdown-Pullout")
+        submenu:SetHideOnLeave(true)
+
+        for _, specEntry in ipairs(classEntry.specs) do
+            local specItem = AG:Create("Dropdown-Item-Execute")
+            specItem:SetText(specEntry.specLabel)
+            specItem.userdata.obj = dropdown
+            specItem.userdata.value = specEntry.value
+            specItem.SetValue = function() end
+            specItem:SetCallback("OnClick", function(item)
+                local value = item and item.userdata and item.userdata.value
+                if not value then return end
+                dropdown:SetValue(value)
+                dropdown:Fire("OnValueChanged", value)
+            end)
+            submenu:AddItem(specItem)
+        end
+
+        classItem:SetMenu(submenu)
+        dropdown.pullout:AddItem(classItem)
+    end
+end
+
+local function ResolveSpellClassSpecSelection(customDB, spellDB)
+    if not spellDB then return end
+    BCDMGUI.SelectedClassSpec = BCDMGUI.SelectedClassSpec or {}
+    local stored = BCDMGUI.SelectedClassSpec[customDB]
+    if stored and spellDB[stored.class] and spellDB[stored.class][stored.spec] then
+        return stored.class, stored.spec
+    end
+
+    local playerClass = select(2, UnitClass("player"))
+    local playerSpecName = select(2, GetSpecializationInfo(GetSpecialization()))
+    local playerSpecToken = NormalizeSpecToken(playerSpecName)
+    if playerClass and playerSpecToken and spellDB[playerClass] and spellDB[playerClass][playerSpecToken] then
+        BCDMGUI.SelectedClassSpec[customDB] = { class = playerClass, spec = playerSpecToken }
+        return playerClass, playerSpecToken
+    end
+
+    for classToken, specs in pairs(spellDB) do
+        for specToken in pairs(specs) do
+            BCDMGUI.SelectedClassSpec[customDB] = { class = classToken, spec = specToken }
+            return classToken, specToken
+        end
+    end
 end
 
 local function ShowItemTooltip(owner, itemId)
@@ -289,6 +547,271 @@ local function CreateCooldownTextSettings(containerParent)
     return cooldownTextContainer
 end
 
+local function CreateCustomGlowSettings(parentContainer)
+    local glowSettings = BCDM:GetCustomGlowSettings()
+    if not glowSettings then
+        return
+    end
+
+    local glowContainer = AG:Create("InlineGroup")
+    glowContainer:SetTitle("Custom Glows")
+    glowContainer:SetFullWidth(true)
+    glowContainer:SetLayout("Flow")
+    parentContainer:AddChild(glowContainer)
+
+    local enableGlow = AG:Create("CheckBox")
+    enableGlow:SetLabel("Enable Custom Glow")
+    enableGlow:SetValue(glowSettings.Enabled)
+    enableGlow:SetRelativeWidth(0.5)
+    glowContainer:AddChild(enableGlow)
+
+    local glowType = AG:Create("Dropdown")
+    glowType:SetLabel("Glow Type")
+    glowType:SetList({
+        Pixel = "Pixel",
+        Autocast = "Autocast",
+        Proc = "Proc",
+        Button = "Action Button",
+    })
+    glowType:SetValue(glowSettings.Type or "Pixel")
+    glowType:SetRelativeWidth(0.5)
+    glowContainer:AddChild(glowType)
+
+    local dynamicGlowSettingsGroup = AG:Create("InlineGroup")
+    dynamicGlowSettingsGroup:SetTitle("Glow Options")
+    dynamicGlowSettingsGroup:SetLayout("Flow")
+    dynamicGlowSettingsGroup:SetFullWidth(true)
+    glowContainer:AddChild(dynamicGlowSettingsGroup)
+
+    local function RefreshGlowSettingsState()
+        local disabled = not glowSettings.Enabled
+        glowType:SetDisabled(disabled)
+        DeepDisable(dynamicGlowSettingsGroup, disabled)
+    end
+
+    local function AddCustomGlowOptions()
+        dynamicGlowSettingsGroup:ReleaseChildren()
+
+        if glowSettings.Type == "Proc" then
+            local glowColor = AG:Create("ColorPicker")
+            glowColor:SetRelativeWidth(0.5)
+            glowColor:SetLabel("Glow Color")
+            glowColor:SetHasAlpha(true)
+            glowColor:SetColor(unpack(glowSettings.Proc.Color))
+            glowColor:SetCallback("OnValueChanged", function(_, _, r, g, b, a)
+                glowSettings.Proc.Color = { r, g, b, a }
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(glowColor)
+
+            local startAnim = AG:Create("CheckBox")
+            startAnim:SetRelativeWidth(0.5)
+            startAnim:SetValue(glowSettings.Proc.StartAnim)
+            startAnim:SetLabel("Start Animation")
+            startAnim:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Proc.StartAnim = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(startAnim)
+
+            local duration = AG:Create("Slider")
+            duration:SetRelativeWidth(0.33)
+            duration:SetValue(glowSettings.Proc.Duration)
+            duration:SetLabel("Duration")
+            duration:SetSliderValues(0.1, 5, 0.05)
+            duration:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Proc.Duration = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(duration)
+
+            local xOffset = AG:Create("Slider")
+            xOffset:SetRelativeWidth(0.33)
+            xOffset:SetValue(glowSettings.Proc.XOffset)
+            xOffset:SetLabel("X Offset")
+            xOffset:SetSliderValues(-30, 30, 1)
+            xOffset:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Proc.XOffset = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(xOffset)
+
+            local yOffset = AG:Create("Slider")
+            yOffset:SetRelativeWidth(0.33)
+            yOffset:SetValue(glowSettings.Proc.YOffset)
+            yOffset:SetLabel("Y Offset")
+            yOffset:SetSliderValues(-30, 30, 1)
+            yOffset:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Proc.YOffset = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(yOffset)
+        elseif glowSettings.Type == "Autocast" then
+            local glowColor = AG:Create("ColorPicker")
+            glowColor:SetRelativeWidth(1)
+            glowColor:SetLabel("Glow Color")
+            glowColor:SetHasAlpha(true)
+            glowColor:SetColor(unpack(glowSettings.Autocast.Color))
+            glowColor:SetCallback("OnValueChanged", function(_, _, r, g, b, a) glowSettings.Autocast.Color = { r, g, b, a } BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(glowColor)
+
+            local numParticles = AG:Create("Slider")
+            numParticles:SetRelativeWidth(0.33)
+            numParticles:SetValue(glowSettings.Autocast.Particles)
+            numParticles:SetLabel("Particles")
+            numParticles:SetSliderValues(1, 30, 1)
+            numParticles:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Autocast.Particles = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(numParticles)
+
+            local frequency = AG:Create("Slider")
+            frequency:SetRelativeWidth(0.33)
+            frequency:SetValue(glowSettings.Autocast.Frequency)
+            frequency:SetLabel("Frequency")
+            frequency:SetSliderValues(-3, 3, 0.05)
+            frequency:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Autocast.Frequency = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(frequency)
+
+            local scale = AG:Create("Slider")
+            scale:SetRelativeWidth(0.33)
+            scale:SetValue(glowSettings.Autocast.Scale)
+            scale:SetLabel("Scale")
+            scale:SetSliderValues(0.01, 5, 0.01)
+            scale:SetIsPercent(true)
+            scale:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Autocast.Scale = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(scale)
+
+            local xOffset = AG:Create("Slider")
+            xOffset:SetRelativeWidth(0.5)
+            xOffset:SetValue(glowSettings.Autocast.XOffset)
+            xOffset:SetLabel("X Offset")
+            xOffset:SetSliderValues(-30, 30, 1)
+            xOffset:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Autocast.XOffset = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(xOffset)
+
+            local yOffset = AG:Create("Slider")
+            yOffset:SetRelativeWidth(0.5)
+            yOffset:SetValue(glowSettings.Autocast.YOffset)
+            yOffset:SetLabel("Y Offset")
+            yOffset:SetSliderValues(-30, 30, 1)
+            yOffset:SetCallback("OnValueChanged", function(_, _, value)
+                glowSettings.Autocast.YOffset = value
+                BCDM:RefreshCustomGlows()
+            end)
+            dynamicGlowSettingsGroup:AddChild(yOffset)
+        elseif glowSettings.Type == "Pixel" then
+            local glowColor = AG:Create("ColorPicker")
+            glowColor:SetRelativeWidth(0.5)
+            glowColor:SetLabel("Glow Color")
+            glowColor:SetHasAlpha(true)
+            glowColor:SetColor(unpack(glowSettings.Pixel.Color))
+            glowColor:SetCallback("OnValueChanged", function(_, _, r, g, b, a) glowSettings.Pixel.Color = { r, g, b, a } BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(glowColor)
+
+            local border = AG:Create("CheckBox")
+            border:SetRelativeWidth(0.5)
+            border:SetValue(glowSettings.Pixel.Border)
+            border:SetLabel("Border")
+            border:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.Border = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(border)
+
+            local numLines = AG:Create("Slider")
+            numLines:SetRelativeWidth(0.33)
+            numLines:SetValue(glowSettings.Pixel.Lines)
+            numLines:SetLabel("Lines")
+            numLines:SetSliderValues(1, 30, 1)
+            numLines:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.Lines = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(numLines)
+
+            local frequency = AG:Create("Slider")
+            frequency:SetRelativeWidth(0.33)
+            frequency:SetValue(glowSettings.Pixel.Frequency)
+            frequency:SetLabel("Frequency")
+            frequency:SetSliderValues(-5, 5, 1)
+            frequency:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.Frequency = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(frequency)
+
+            local length = AG:Create("Slider")
+            length:SetRelativeWidth(0.33)
+            length:SetValue(glowSettings.Pixel.Length)
+            length:SetLabel("Length")
+            length:SetSliderValues(1, 32, 1)
+            length:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.Length = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(length)
+
+            local thickness = AG:Create("Slider")
+            thickness:SetRelativeWidth(0.33)
+            thickness:SetValue(glowSettings.Pixel.Thickness)
+            thickness:SetLabel("Thickness")
+            thickness:SetSliderValues(1, 6, 1)
+            thickness:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.Thickness = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(thickness)
+
+            local xOffset = AG:Create("Slider")
+            xOffset:SetRelativeWidth(0.33)
+            xOffset:SetValue(glowSettings.Pixel.XOffset)
+            xOffset:SetLabel("X Offset")
+            xOffset:SetSliderValues(-32, 32, 1)
+            xOffset:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.XOffset = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(xOffset)
+
+            local yOffset = AG:Create("Slider")
+            yOffset:SetRelativeWidth(0.33)
+            yOffset:SetValue(glowSettings.Pixel.YOffset)
+            yOffset:SetLabel("Y Offset")
+            yOffset:SetSliderValues(-32, 32, 1)
+            yOffset:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Pixel.YOffset = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(yOffset)
+        elseif glowSettings.Type == "Button" then
+            local frequency = AG:Create("Slider")
+            frequency:SetRelativeWidth(0.5)
+            frequency:SetValue(glowSettings.Button.Frequency)
+            frequency:SetLabel("Frequency")
+            frequency:SetSliderValues(-3, 3, 0.05)
+            frequency:SetCallback("OnValueChanged", function(_, _, value) glowSettings.Button.Frequency = value BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(frequency)
+
+            local glowColor = AG:Create("ColorPicker")
+            glowColor:SetRelativeWidth(0.5)
+            glowColor:SetLabel("Glow Color")
+            glowColor:SetHasAlpha(true)
+            glowColor:SetColor(unpack(glowSettings.Button.Color))
+            glowColor:SetCallback("OnValueChanged", function(_, _, r, g, b, a) glowSettings.Button.Color = { r, g, b, a } BCDM:RefreshCustomGlows() end)
+            dynamicGlowSettingsGroup:AddChild(glowColor)
+        end
+
+        RefreshGlowSettingsState()
+        glowContainer:DoLayout()
+        parentContainer:DoLayout()
+    end
+
+    enableGlow:SetCallback("OnValueChanged", function(_, _, value)
+        glowSettings.Enabled = value
+        RefreshGlowSettingsState()
+        BCDM:RefreshCustomGlows()
+    end)
+
+    glowType:SetCallback("OnValueChanged", function(_, _, value)
+        glowSettings.Type = value
+        AddCustomGlowOptions()
+        BCDM:RefreshCustomGlows()
+    end)
+
+    AddCustomGlowOptions()
+    RefreshGlowSettingsState()
+end
+
 local function CreateGeneralSettings(parentContainer)
     local GeneralDB = BCDM.db.profile.General
     local CooldownManagerDB = BCDM.db.profile.CooldownManager
@@ -319,6 +842,7 @@ local function CreateGeneralSettings(parentContainer)
             [18] = {1, 0.61, 0}         -- Pain
         },
         SecondaryPower = {
+            MANA                           = {0.00, 0.00, 1.00, 1.0 },
             [Enum.PowerType.Chi]           = {0.00, 1.00, 0.59, 1.0 },
             [Enum.PowerType.ComboPoints]   = {1.00, 0.96, 0.41, 1.0 },
             [Enum.PowerType.HolyPower]     = {0.95, 0.90, 0.60, 1.0 },
@@ -359,7 +883,7 @@ local function CreateGeneralSettings(parentContainer)
     SecondaryColoursContainer:SetLayout("Flow")
     CustomColoursContainer:AddChild(SecondaryColoursContainer)
 
-    local SecondaryPowerOrder = { Enum.PowerType.Chi, Enum.PowerType.ComboPoints, Enum.PowerType.HolyPower, Enum.PowerType.ArcaneCharges, Enum.PowerType.Essence, Enum.PowerType.SoulShards, "STAGGER", Enum.PowerType.Runes, "RUNE_RECHARGE", "SOUL", Enum.PowerType.Maelstrom, "CHARGED_COMBO_POINTS", "ESSENCE_RECHARGE" }
+    local SecondaryPowerOrder = {Enum.PowerType.Chi, Enum.PowerType.ComboPoints, Enum.PowerType.HolyPower, Enum.PowerType.ArcaneCharges, Enum.PowerType.Essence, Enum.PowerType.SoulShards, "STAGGER", Enum.PowerType.Runes, "RUNE_RECHARGE", "SOUL", Enum.PowerType.Maelstrom, "CHARGED_COMBO_POINTS", "ESSENCE_RECHARGE" }
     for _, powerType in ipairs(SecondaryPowerOrder) do
         local powerColour = BCDM.db.profile.General.Colours.SecondaryPower[powerType]
         local PowerColour = AG:Create("ColorPicker")
@@ -426,26 +950,6 @@ local function CreateGeneralSettings(parentContainer)
     SupportMeContainer:SetFullWidth(true)
     ScrollFrame:AddChild(SupportMeContainer)
 
-    -- local KoFiInteractive = AG:Create("InteractiveLabel")
-    -- KoFiInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Ko-Fi.png:16:21|t |cFF8080FFKo-Fi|r")
-    -- KoFiInteractive:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-    -- KoFiInteractive:SetJustifyV("MIDDLE")
-    -- KoFiInteractive:SetRelativeWidth(0.33)
-    -- KoFiInteractive:SetCallback("OnClick", function() BCDM:OpenURL("Support Me on Ko-Fi", "https://ko-fi.com/unhalted") end)
-    -- KoFiInteractive:SetCallback("OnEnter", function() KoFiInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Ko-Fi.png:16:21|t |cFFFFFFFFKo-Fi|r") end)
-    -- KoFiInteractive:SetCallback("OnLeave", function() KoFiInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Ko-Fi.png:16:21|t |cFF8080FFKo-Fi|r") end)
-    -- SupportMeContainer:AddChild(KoFiInteractive)
-
-    -- local PayPalInteractive = AG:Create("InteractiveLabel")
-    -- PayPalInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\PayPal.png:23:21|t |cFF8080FFPayPal|r")
-    -- PayPalInteractive:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-    -- PayPalInteractive:SetJustifyV("MIDDLE")
-    -- PayPalInteractive:SetRelativeWidth(0.33)
-    -- PayPalInteractive:SetCallback("OnClick", function() BCDM:OpenURL("Support Me on PayPal", "https://www.paypal.com/paypalme/dhunt1911") end)
-    -- PayPalInteractive:SetCallback("OnEnter", function() PayPalInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\PayPal.png:23:21|t |cFFFFFFFFPayPal|r") end)
-    -- PayPalInteractive:SetCallback("OnLeave", function() PayPalInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\PayPal.png:23:21|t |cFF8080FFPayPal|r") end)
-    -- SupportMeContainer:AddChild(PayPalInteractive)
-
     local TwitchInteractive = AG:Create("InteractiveLabel")
     TwitchInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Twitch.png:25:21|t |cFF8080FFTwitch|r")
     TwitchInteractive:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
@@ -465,16 +969,6 @@ local function CreateGeneralSettings(parentContainer)
     DiscordInteractive:SetCallback("OnEnter", function() DiscordInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Discord.png:21:21|t |cFFFFFFFFDiscord|r") end)
     DiscordInteractive:SetCallback("OnLeave", function() DiscordInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Discord.png:21:21|t |cFF8080FFDiscord|r") end)
     SupportMeContainer:AddChild(DiscordInteractive)
-
-    -- local PatreonInteractive = AG:Create("InteractiveLabel")
-    -- PatreonInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Patreon.png:21:21|t |cFF8080FFPatreon|r")
-    -- PatreonInteractive:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-    -- PatreonInteractive:SetJustifyV("MIDDLE")
-    -- PatreonInteractive:SetRelativeWidth(0.33)
-    -- PatreonInteractive:SetCallback("OnClick", function() BCDM:OpenURL("Support Me on Patreon", "https://www.patreon.com/unhalted") end)
-    -- PatreonInteractive:SetCallback("OnEnter", function() PatreonInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Patreon.png:21:21|t |cFFFFFFFFPatreon|r") end)
-    -- PatreonInteractive:SetCallback("OnLeave", function() PatreonInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Patreon.png:21:21|t |cFF8080FFPatreon|r") end)
-    -- SupportMeContainer:AddChild(PatreonInteractive)
 
     local GithubInteractive = AG:Create("InteractiveLabel")
     GithubInteractive:SetText("|TInterface\\AddOns\\BetterCooldownManager\\Media\\Support\\Github.png:21:21|t |cFF8080FFGithub|r")
@@ -522,8 +1016,22 @@ local function CreateGlobalSettings(parentContainer)
         }
         StaticPopup_Show("BCDM_RELOAD_UI")
     end)
-    enableCDMSkinningCheckbox:SetRelativeWidth(1)
+    enableCDMSkinningCheckbox:SetRelativeWidth(0.33)
     globalSettingsContainer:AddChild(enableCDMSkinningCheckbox)
+
+    local disableAuraOverlayCheckbox = AG:Create("CheckBox")
+    disableAuraOverlayCheckbox:SetLabel("Disable Aura Overlay")
+    disableAuraOverlayCheckbox:SetValue(CooldownManagerDB.General.DisableAuraOverlay)
+    disableAuraOverlayCheckbox:SetCallback("OnValueChanged", function(_, _, value) CooldownManagerDB.General.DisableAuraOverlay = value BCDM:RefreshAuraOverlayRemoval() end)
+    disableAuraOverlayCheckbox:SetRelativeWidth(0.33)
+    globalSettingsContainer:AddChild(disableAuraOverlayCheckbox)
+
+    local disableChatPrintsCheckbox = AG:Create("CheckBox")
+    disableChatPrintsCheckbox:SetLabel("Display Login Message")
+    disableChatPrintsCheckbox:SetValue(BCDM.db.global.DisplayLoginMessage)
+    disableChatPrintsCheckbox:SetCallback("OnValueChanged", function(_, _, value) BCDM.db.global.DisplayLoginMessage = value end)
+    disableChatPrintsCheckbox:SetRelativeWidth(0.33)
+    globalSettingsContainer:AddChild(disableChatPrintsCheckbox)
 
     local iconZoomSlider = AG:Create("Slider")
     iconZoomSlider:SetLabel("Icon Zoom")
@@ -541,6 +1049,8 @@ local function CreateGlobalSettings(parentContainer)
     borderSizeSlider:SetCallback("OnValueChanged", function(_, _, value) CooldownManagerDB.General.BorderSize = value BCDM:UpdateBCDM() end)
     borderSizeSlider:SetRelativeWidth(0.5)
     globalSettingsContainer:AddChild(borderSizeSlider)
+
+    CreateCustomGlowSettings(globalSettingsContainer)
 
     local FontContainer = AG:Create("InlineGroup")
     FontContainer:SetTitle("Font Settings")
@@ -661,7 +1171,7 @@ local function CreateGlobalSettings(parentContainer)
 end
 
 local function CreateEditModeManagerSettings(parentContainer)
-    local EditModeManagerDB = BCDM.db.profile.EditModeManager
+    local EditModeManagerDB = BCDM.db.global.EditModeManager
 
     local editModeManagerContainer = AG:Create("InlineGroup")
     editModeManagerContainer:SetTitle("Edit Mode Manager Settings")
@@ -676,21 +1186,12 @@ local function CreateEditModeManagerSettings(parentContainer)
     editModeManagerContainer:AddChild(layoutContainer)
 
     local raidLayoutDropdown = {}
-    local specLayoutDropdown = {}
     local layoutOrder = {"LFR", "Normal", "Heroic", "Mythic"}
-    local numSpecs = GetNumSpecializations()
 
     local function RefreshRaidLayoutSettings()
         local isDisabled = not EditModeManagerDB.SwapOnInstanceDifficulty
         for i = 1, #layoutOrder do
             raidLayoutDropdown[i]:SetDisabled(isDisabled)
-        end
-    end
-
-    local function RefreshSpecializationSettings()
-        local isDisabled = not EditModeManagerDB.SwapOnSpecializationChange
-        for i = 1, numSpecs do
-            specLayoutDropdown[i]:SetDisabled(isDisabled)
         end
     end
 
@@ -722,53 +1223,15 @@ local function CreateEditModeManagerSettings(parentContainer)
         raidLayoutDropdown[i]:SetList(AvailableLayouts)
         raidLayoutDropdown[i]:SetText(EditModeManagerDB.RaidLayouts[layoutType])
         raidLayoutDropdown[i]:SetRelativeWidth(0.5)
-        raidLayoutDropdown[i]:SetCallback("OnEnterPressed", function(self)
-            local input = self:GetText()
-            EditModeManagerDB.RaidLayouts[layoutType] = input
+        raidLayoutDropdown[i]:SetCallback("OnValueChanged", function(self, _, value)
+            EditModeManagerDB.RaidLayouts[layoutType] = AvailableLayouts[value]
             BCDM:UpdateLayout()
             BCDM:UpdateBCDM()
         end)
         raidDifficultyContainer:AddChild(raidLayoutDropdown[i])
     end
 
-    local specializationContainer = AG:Create("InlineGroup")
-    specializationContainer:SetTitle("Specialization Settings")
-    specializationContainer:SetFullWidth(true)
-    specializationContainer:SetLayout("Flow")
-    layoutContainer:AddChild(specializationContainer)
-
-    CreateInformationTag(specializationContainer, "Define |cFF8080FFEdit Mode Layouts|r for Different Specializations.")
-
-    local swapOnSpecializationChangeCheckbox = AG:Create("CheckBox")
-    swapOnSpecializationChangeCheckbox:SetLabel("Swap on Specialization Change")
-    swapOnSpecializationChangeCheckbox:SetValue(EditModeManagerDB.SwapOnSpecializationChange)
-    swapOnSpecializationChangeCheckbox:SetCallback("OnValueChanged", function(_, _, value)
-        EditModeManagerDB.SwapOnSpecializationChange = value
-        RefreshSpecializationSettings()
-        BCDM:UpdateLayout()
-        BCDM:UpdateBCDM()
-    end)
-    swapOnSpecializationChangeCheckbox:SetRelativeWidth(1)
-    specializationContainer:AddChild(swapOnSpecializationChangeCheckbox)
-
-    for i = 1, numSpecs do
-        local _, specName = GetSpecializationInfo(i)
-        specLayoutDropdown[i] = AG:Create("Dropdown")
-        specLayoutDropdown[i]:SetLabel(specName .. " Layout")
-        specLayoutDropdown[i]:SetList(AvailableLayouts)
-        specLayoutDropdown[i]:SetText(EditModeManagerDB.SpecializationLayouts[i])
-        specLayoutDropdown[i]:SetRelativeWidth(numSpecs == 2 and 0.5 or numSpecs == 3 and 0.33 or 0.25)
-        specLayoutDropdown[i]:SetCallback("OnEnterPressed", function(self)
-            local input = self:GetText()
-            EditModeManagerDB.SpecializationLayouts[i] = input
-            BCDM:UpdateLayout()
-            BCDM:UpdateBCDM()
-        end)
-        specializationContainer:AddChild(specLayoutDropdown[i])
-    end
-
     RefreshRaidLayoutSettings()
-    RefreshSpecializationSettings()
 end
 
 local function CreateCooldownViewerTextSettings(parentContainer, viewerType)
@@ -832,8 +1295,46 @@ end
 local function CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
     local SpellDB = BCDM.db.profile.CooldownManager[customDB].Spells
 
-    local playerClass = select(2, UnitClass("player"))
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local selectedClass, selectedSpec = ResolveSpellClassSpecSelection(customDB, SpellDB)
+
+    local AddRacialsToAllClassesButton = AG:Create("Button")
+    AddRacialsToAllClassesButton:SetText("Add Racials")
+    AddRacialsToAllClassesButton:SetRelativeWidth(0.33)
+    AddRacialsToAllClassesButton:SetCallback("OnClick", function() BCDM:AddRacials(customDB) BCDM:UpdateCooldownViewer(customDB) parentContainer:ReleaseChildren() CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh) end)
+    AddRacialsToAllClassesButton:SetCallback("OnEnter", function(widget) GameTooltip:SetOwner(widget.frame, "ANCHOR_CURSOR") GameTooltip:SetText("This will add all racials to every single class & specialization on your profile.", 1, 1, 1, 1, false) GameTooltip:Show() end)
+    AddRacialsToAllClassesButton:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+    parentContainer:AddChild(AddRacialsToAllClassesButton)
+
+    local RemoveRacialsFromAllClassesButton = AG:Create("Button")
+    RemoveRacialsFromAllClassesButton:SetText("Remove Racials")
+    RemoveRacialsFromAllClassesButton:SetRelativeWidth(0.33)
+    RemoveRacialsFromAllClassesButton:SetCallback("OnClick", function()
+        BCDM:RemoveRacials(customDB)
+        BCDM:UpdateCooldownViewer(customDB)
+        parentContainer:ReleaseChildren()
+        CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+    end)
+    RemoveRacialsFromAllClassesButton:SetCallback("OnEnter", function(widget) GameTooltip:SetOwner(widget.frame, "ANCHOR_CURSOR") GameTooltip:SetText("This will remove all racials from every single class & specialization on your profile.", 1, 1, 1, 1, false) GameTooltip:Show() end)
+    RemoveRacialsFromAllClassesButton:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+    parentContainer:AddChild(RemoveRacialsFromAllClassesButton)
+
+    local classSpecDropdown = AG:Create("Dropdown")
+    classSpecDropdown:SetLabel("Select a Class & Specialization")
+    PopulateClassSpecDropdown(classSpecDropdown, SpellDB)
+    if selectedClass and selectedSpec then
+        classSpecDropdown:SetValue(selectedClass .. ":" .. selectedSpec)
+    end
+    classSpecDropdown:SetCallback("OnValueChanged", function(_, _, value)
+        local classToken, specToken = ParseClassSpecDropdownValue(value)
+        if classToken and specToken then
+            BCDMGUI.SelectedClassSpec = BCDMGUI.SelectedClassSpec or {}
+            BCDMGUI.SelectedClassSpec[customDB] = { class = classToken, spec = specToken }
+            parentContainer:ReleaseChildren()
+            CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+        end
+    end)
+    classSpecDropdown:SetRelativeWidth(0.33)
+    parentContainer:AddChild(classSpecDropdown)
 
     local addSpellEditBox = AG:Create("EditBox")
     addSpellEditBox:SetLabel("Add Spell by ID or Spell Name")
@@ -842,7 +1343,7 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
         local input = self:GetText()
         local spellId = FetchSpellID(input)
         if spellId then
-            BCDM:AdjustSpellList(spellId, "add", customDB)
+            BCDM:AdjustSpellList(spellId, "add", customDB, selectedClass, selectedSpec)
             BCDM:UpdateCooldownViewer(customDB)
             parentContainer:ReleaseChildren()
             CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
@@ -853,12 +1354,12 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
 
     local dataListDropdown = AG:Create("Dropdown")
     dataListDropdown:SetLabel("Spell List")
-    dataListDropdown:SetList(BuildDataDropdownList(BCDM:FetchData({ includeSpells = true })))
+    dataListDropdown:SetList(BuildDataDropdownList(BCDM:FetchData({ includeSpells = true, classToken = selectedClass, specToken = selectedSpec })))
     dataListDropdown:SetValue(nil)
     dataListDropdown:SetCallback("OnValueChanged", function(_, _, value)
         local entryType, entryId = ParseDataDropdownValue(value)
         if entryType == "spell" and entryId then
-            BCDM:AdjustSpellList(entryId, "add", customDB)
+            BCDM:AdjustSpellList(entryId, "add", customDB, selectedClass, selectedSpec)
             BCDM:UpdateCooldownViewer(customDB)
             parentContainer:ReleaseChildren()
             CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
@@ -867,12 +1368,11 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
     dataListDropdown:SetRelativeWidth(0.5)
     parentContainer:AddChild(dataListDropdown)
 
-
-    if SpellDB[playerClass] and SpellDB[playerClass][playerSpecialization] then
+    if selectedClass and selectedSpec and SpellDB[selectedClass] and SpellDB[selectedClass][selectedSpec] then
 
         local sortedSpells = {}
 
-        for spellId, data in pairs(SpellDB[playerClass][playerSpecialization]) do table.insert(sortedSpells, {id = spellId, data = data}) end
+        for spellId, data in pairs(SpellDB[selectedClass][selectedSpec]) do table.insert(sortedSpells, {id = spellId, data = data}) end
         table.sort(sortedSpells, function(a, b) return a.data.layoutIndex < b.data.layoutIndex end)
 
         for _, spell in ipairs(sortedSpells) do
@@ -882,7 +1382,10 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
             local spellCheckbox = AG:Create("CheckBox")
             spellCheckbox:SetLabel("[" .. (data.layoutIndex or "?") .. "] " .. (FetchSpellInformation(spellId) or ("SpellID: " .. spellId)))
             spellCheckbox:SetValue(data.isActive)
-            spellCheckbox:SetCallback("OnValueChanged", function(_, _, value) SpellDB[playerClass][playerSpecialization][spellId].isActive = value BCDM:UpdateCooldownViewer("Custom") end)
+            spellCheckbox:SetCallback("OnValueChanged", function(_, _, value)
+                SpellDB[selectedClass][selectedSpec][spellId].isActive = value
+                BCDM:UpdateCooldownViewer(customDB)
+            end)
             spellCheckbox:SetCallback("OnEnter", function(widget) ShowSpellTooltip(widget.frame, spellId) end)
             spellCheckbox:SetCallback("OnLeave", function() GameTooltip:Hide() end)
             spellCheckbox:SetRelativeWidth(0.6)
@@ -891,20 +1394,28 @@ local function CreateCooldownViewerSpellSettings(parentContainer, customDB, cont
             local moveUpButton = AG:Create("Button")
             moveUpButton:SetText("Up")
             moveUpButton:SetRelativeWidth(0.1333)
-            moveUpButton:SetCallback("OnClick", function() BCDM:AdjustSpellLayoutIndex(-1, spellId, customDB) parentContainer:ReleaseChildren() CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh) end)
+            moveUpButton:SetCallback("OnClick", function()
+                BCDM:AdjustSpellLayoutIndex(-1, spellId, customDB, selectedClass, selectedSpec)
+                parentContainer:ReleaseChildren()
+                CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+            end)
             parentContainer:AddChild(moveUpButton)
 
             local moveDownButton = AG:Create("Button")
             moveDownButton:SetText("Down")
             moveDownButton:SetRelativeWidth(0.1333)
-            moveDownButton:SetCallback("OnClick", function() BCDM:AdjustSpellLayoutIndex(1, spellId, customDB) parentContainer:ReleaseChildren() CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh) end)
+            moveDownButton:SetCallback("OnClick", function()
+                BCDM:AdjustSpellLayoutIndex(1, spellId, customDB, selectedClass, selectedSpec)
+                parentContainer:ReleaseChildren()
+                CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
+            end)
             parentContainer:AddChild(moveDownButton)
 
             local removeSpellButton = AG:Create("Button")
             removeSpellButton:SetText("X")
             removeSpellButton:SetRelativeWidth(0.1333)
             removeSpellButton:SetCallback("OnClick", function()
-                BCDM:AdjustSpellList(spellId, "remove", customDB)
+                BCDM:AdjustSpellList(spellId, "remove", customDB, selectedClass, selectedSpec)
                 BCDM:UpdateCooldownViewer(customDB)
                 parentContainer:ReleaseChildren()
                 CreateCooldownViewerSpellSettings(parentContainer, customDB, containerToRefresh)
@@ -1144,6 +1655,35 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         toggleContainer:AddChild(centerBuffsCheckbox)
     end
 
+    if viewerType == "Essential" or viewerType == "Utility" then
+        local toggleContainer = AG:Create("InlineGroup")
+        toggleContainer:SetTitle(viewerType .. " Settings")
+        toggleContainer:SetFullWidth(true)
+        toggleContainer:SetLayout("Flow")
+        ScrollFrame:AddChild(toggleContainer)
+
+        local centerHorizontallyCheckbox = AG:Create("CheckBox")
+        centerHorizontallyCheckbox:SetLabel("Center Second Row (Horizontally) - |cFFFF4040Reload|r Required.")
+        centerHorizontallyCheckbox:SetValue(BCDM.db.profile.CooldownManager[viewerType].CenterHorizontally)
+        centerHorizontallyCheckbox:SetCallback("OnValueChanged", function(_, _, value)
+            BCDM.db.profile.CooldownManager[viewerType].CenterHorizontally = value
+            StaticPopupDialogs["BCDM_RELOAD_UI"] = {
+                text = "You must reload to apply this change, do you want to reload now?",
+                button1 = "Reload Now",
+                button2 = "Later",
+                showAlert = true,
+                OnAccept = function() C_UI.Reload() end,
+                OnCancel = function() centerHorizontallyCheckbox:SetValue(BCDM.db.profile.CooldownManager[viewerType].CenterHorizontally) toggleContainer:DoLayout() end,
+                timeout = 0,
+                whileDead = true,
+                hideOnEscape = true,
+            }
+            StaticPopup_Show("BCDM_RELOAD_UI")
+        end)
+        centerHorizontallyCheckbox:SetRelativeWidth(1)
+        toggleContainer:AddChild(centerHorizontallyCheckbox)
+    end
+
     -- local foregroundColourPicker;
 
     -- if viewerType == "BuffBar" then
@@ -1248,12 +1788,14 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         layoutContainer:AddChild(spacingSlider)
     end
 
+    local isPrimaryViewer = viewerType == "Essential" or viewerType == "Utility" or viewerType == "Buffs"
+
     local xOffsetSlider = AG:Create("Slider")
     xOffsetSlider:SetLabel("X Offset")
     xOffsetSlider:SetValue(BCDM.db.profile.CooldownManager[viewerType].Layout[hasAnchorParent and 4 or 3])
     xOffsetSlider:SetSliderValues(-3000, 3000, 0.1)
     xOffsetSlider:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].Layout[hasAnchorParent and 4 or 3] = value BCDM:UpdateCooldownViewer(viewerType) end)
-    xOffsetSlider:SetRelativeWidth(isCustomViewer and 0.25 or 0.33)
+    xOffsetSlider:SetRelativeWidth(isPrimaryViewer and 0.5 or 0.33)
     layoutContainer:AddChild(xOffsetSlider)
 
     local yOffsetSlider = AG:Create("Slider")
@@ -1261,26 +1803,88 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
     yOffsetSlider:SetValue(BCDM.db.profile.CooldownManager[viewerType].Layout[hasAnchorParent and 5 or 4])
     yOffsetSlider:SetSliderValues(-3000, 3000, 0.1)
     yOffsetSlider:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].Layout[hasAnchorParent and 5 or 4] = value BCDM:UpdateCooldownViewer(viewerType) end)
-    yOffsetSlider:SetRelativeWidth(isCustomViewer and 0.25 or 0.33)
+    yOffsetSlider:SetRelativeWidth(isPrimaryViewer and 0.5 or 0.33)
     layoutContainer:AddChild(yOffsetSlider)
+
+    local iconContainer = AG:Create("InlineGroup")
+    iconContainer:SetTitle("Icon Settings")
+    iconContainer:SetFullWidth(true)
+    iconContainer:SetLayout("Flow")
+    ScrollFrame:AddChild(iconContainer)
+
+    local keepAspectCheckbox = AG:Create("CheckBox")
+    keepAspectCheckbox:SetLabel("Keep Aspect Ratio")
+    keepAspectCheckbox:SetValue(BCDM.db.profile.CooldownManager[viewerType].KeepAspectRatio ~= false)
+    keepAspectCheckbox:SetRelativeWidth(1)
+    iconContainer:AddChild(keepAspectCheckbox)
 
     local iconSizeSlider = AG:Create("Slider")
     iconSizeSlider:SetLabel("Icon Size")
     iconSizeSlider:SetValue(BCDM.db.profile.CooldownManager[viewerType].IconSize)
     iconSizeSlider:SetSliderValues(16, 128, 0.1)
-    iconSizeSlider:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].IconSize = value BCDM:UpdateCooldownViewer(viewerType) end)
-    iconSizeSlider:SetRelativeWidth(isCustomViewer and 0.25 or 0.33)
-    layoutContainer:AddChild(iconSizeSlider)
+    iconSizeSlider:SetCallback("OnValueChanged", function(self, _, value)
+        BCDM.db.profile.CooldownManager[viewerType].IconSize = value
+        BCDM:UpdateCooldownViewer(viewerType)
+    end)
+    iconSizeSlider:SetRelativeWidth(0.3333)
+    iconContainer:AddChild(iconSizeSlider)
+
+    local iconWidthSlider = AG:Create("Slider")
+    iconWidthSlider:SetLabel("Icon Width")
+    iconWidthSlider:SetValue(BCDM.db.profile.CooldownManager[viewerType].IconWidth or BCDM.db.profile.CooldownManager[viewerType].IconSize)
+    iconWidthSlider:SetSliderValues(16, 128, 0.1)
+    iconWidthSlider:SetCallback("OnValueChanged", function(self, _, value)
+        BCDM.db.profile.CooldownManager[viewerType].IconWidth = value
+        BCDM:UpdateCooldownViewer(viewerType)
+    end)
+    iconWidthSlider:SetRelativeWidth(0.3333)
+    iconContainer:AddChild(iconWidthSlider)
+
+    local iconHeightSlider = AG:Create("Slider")
+    iconHeightSlider:SetLabel("Icon Height")
+    iconHeightSlider:SetValue(BCDM.db.profile.CooldownManager[viewerType].IconHeight or BCDM.db.profile.CooldownManager[viewerType].IconSize)
+    iconHeightSlider:SetSliderValues(16, 128, 0.1)
+    iconHeightSlider:SetCallback("OnValueChanged", function(self, _, value)
+        BCDM.db.profile.CooldownManager[viewerType].IconHeight = value
+        BCDM:UpdateCooldownViewer(viewerType)
+    end)
+    iconHeightSlider:SetRelativeWidth(0.3333)
+    iconContainer:AddChild(iconHeightSlider)
+
 
     if viewerType == "Essential" or viewerType == "Utility" or viewerType == "Buffs" then
-        local infoTag = CreateInformationTag(layoutContainer, "Updates To Sizes will be applied on closing the |cFF8080FFBetter|rCooldownManager Configuration Window.")
+        local infoTag = CreateInformationTag(iconContainer, "Size changes will be applied on closing the |cFF8080FFBetter|rCooldownManager Configuration Window.", "LEFT")
         infoTag:SetRelativeWidth(0.7)
         local forceUpdateButton = AG:Create("Button")
-        forceUpdateButton:SetText("Force Update")
+        forceUpdateButton:SetText("Update")
         forceUpdateButton:SetRelativeWidth(0.3)
         forceUpdateButton:SetCallback("OnClick", function() LEMO:ApplyChanges() end)
-        layoutContainer:AddChild(forceUpdateButton)
+        iconContainer:AddChild(forceUpdateButton)
     end
+
+    local function UpdateIconSizeControlState()
+        local keepAspect = BCDM.db.profile.CooldownManager[viewerType].KeepAspectRatio ~= false
+        DeepDisable(iconSizeSlider, not keepAspect)
+        DeepDisable(iconWidthSlider, keepAspect)
+        DeepDisable(iconHeightSlider, keepAspect)
+    end
+
+    keepAspectCheckbox:SetCallback("OnValueChanged", function(self, _, value)
+        local viewerDB = BCDM.db.profile.CooldownManager[viewerType]
+        viewerDB.KeepAspectRatio = value
+        local fallbackSize = viewerDB.IconSize or viewerDB.IconWidth or viewerDB.IconHeight or 32
+        if value then
+            viewerDB.IconSize = viewerDB.IconWidth or viewerDB.IconHeight or fallbackSize
+        else
+            viewerDB.IconWidth = viewerDB.IconWidth or fallbackSize
+            viewerDB.IconHeight = viewerDB.IconHeight or fallbackSize
+        end
+        UpdateIconSizeControlState()
+        BCDM:UpdateCooldownViewer(viewerType)
+        LEMO:ApplyChanges()
+    end)
+
+    UpdateIconSizeControlState()
 
     if isCustomViewer then
         local frameStrataDropdown = AG:Create("Dropdown")
@@ -1288,7 +1892,7 @@ local function CreateCooldownViewerSettings(parentContainer, viewerType)
         frameStrataDropdown:SetList({["BACKGROUND"] = "Background", ["LOW"] = "Low", ["MEDIUM"] = "Medium", ["HIGH"] = "High", ["DIALOG"] = "Dialog", ["FULLSCREEN"] = "Fullscreen", ["FULLSCREEN_DIALOG"] = "Fullscreen Dialog", ["TOOLTIP"] = "Tooltip"}, {"BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP"})
         frameStrataDropdown:SetValue(BCDM.db.profile.CooldownManager[viewerType].FrameStrata)
         frameStrataDropdown:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.CooldownManager[viewerType].FrameStrata = value BCDM:UpdateCooldownViewer(viewerType) end)
-        frameStrataDropdown:SetRelativeWidth(0.25)
+        frameStrataDropdown:SetRelativeWidth(0.33)
         layoutContainer:AddChild(frameStrataDropdown)
     end
 
@@ -1513,6 +2117,12 @@ local function CreatePowerBarSettings(parentContainer)
     heightSliderWithoutSecondary:SetSliderValues(5, 500, 0.1)
     heightSliderWithoutSecondary:SetCallback("OnValueChanged", function(self, _, value) BCDM.db.profile.PowerBar.HeightWithoutSecondary = value BCDM:UpdatePowerBar() end)
     heightSliderWithoutSecondary:SetRelativeWidth(0.25)
+    heightSliderWithoutSecondary:SetCallback("OnEnter", function(self)
+        GameTooltip:SetOwner(self.frame, "ANCHOR_CURSOR")
+        GameTooltip:AddLine("This height is used when the player does |cFFFF4040NOT|r have a Secondary Power Bar, such as |cFFC79C6EWarrior|r or |cFFABD473Hunter|r")
+        GameTooltip:Show()
+    end)
+    heightSliderWithoutSecondary:SetCallback("OnLeave", function() GameTooltip:Hide() end)
     heightSliderWithoutSecondary:SetDisabled(DetectSecondaryPower())
     layoutContainer:AddChild(heightSliderWithoutSecondary)
 
@@ -2443,7 +3053,7 @@ function BCDM:CreateGUI()
     Container:SetWidth(900)
     Container:SetHeight(600)
     Container:EnableResize(false)
-    Container:SetCallback("OnClose", function(widget) AG:Release(widget) LEMO:ApplyChanges() BCDM:UpdateBCDM() isGUIOpen = false BCDM.CAST_BAR_TEST_MODE = false BCDM:CreateTestCastBar() BCDM.EssentialCooldownViewerOverlay:Hide() BCDM.UtilityCooldownViewerOverlay:Hide() BCDM.BuffIconCooldownViewerOverlay:Hide() end)
+    Container:SetCallback("OnClose", function(widget) AG:Release(widget) LEMO:ApplyChanges() BCDM:UpdateBCDM() isGUIOpen = false BCDM.CAST_BAR_TEST_MODE = false BCDM:CreateTestCastBar() BCDM.EssentialCooldownViewerOverlay:Hide() BCDM.UtilityCooldownViewerOverlay:Hide() BCDM.BuffIconCooldownViewerOverlay:Hide() if CooldownViewerSettings:IsShown() then CooldownViewerSettings:Hide() end end)
 
     local function SelectTab(GUIContainer, _, MainTab)
         GUIContainer:ReleaseChildren()

@@ -306,8 +306,13 @@ function BCDM:FetchData(options)
     local includeItems = options.includeItems
     local dataList = {}
 
-    local _, playerClass = UnitClass("player")
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local function NormalizeSpecToken(specToken)
+        if not specToken then return end
+        return tostring(specToken):gsub(" ", ""):upper()
+    end
+
+    local playerClass = options.classToken or select(2, UnitClass("player"))
+    local playerSpecialization = NormalizeSpecToken(options.specToken) or NormalizeSpecToken(select(2, GetSpecializationInfo(GetSpecialization())))
 
     if includeSpells and DEFENSIVE_SPELLS[playerClass] and DEFENSIVE_SPELLS[playerClass][playerSpecialization] then
         for spellId, data in pairs(DEFENSIVE_SPELLS[playerClass][playerSpecialization]) do
@@ -392,7 +397,43 @@ function BCDM:FetchEquippedTrinkets()
         end
     end
 
-    if usableCount == 0 then BCDM.TrinketBarContainer:Hide() return end
+    if usableCount == 0 and BCDM.TrinketBarContainer then BCDM.TrinketBarContainer:Hide() return end
 
     BCDM:UpdateCooldownViewer("Trinket")
+end
+
+function BCDM:AddRacials(customDB)
+    local CooldownManager = BCDM.db.profile.CooldownManager
+    if not CooldownManager or not CooldownManager[customDB] then return end
+
+    local CustomDB = CooldownManager[customDB]
+    if not CustomDB.Spells then return end
+
+    for classToken, specs in pairs(CustomDB.Spells) do
+        for specToken, spells in pairs(specs) do
+            for spellId, data in pairs(RACIALS) do
+                if not spells[spellId] then
+                    spells[spellId] = data
+                end
+            end
+        end
+    end
+end
+
+function BCDM:RemoveRacials(customDB)
+    local CooldownManager = BCDM.db.profile.CooldownManager
+    if not CooldownManager or not CooldownManager[customDB] then return end
+
+    local CustomDB = CooldownManager[customDB]
+    if not CustomDB.Spells then return end
+
+    for classToken, specs in pairs(CustomDB.Spells) do
+        for specToken, spells in pairs(specs) do
+            for spellId, data in pairs(RACIALS) do
+                if spells[spellId] then
+                    spells[spellId] = nil
+                end
+            end
+        end
+    end
 end

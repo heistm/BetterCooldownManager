@@ -4,6 +4,16 @@ local Defaults = {
     global = {
         UseGlobalProfile = false,
         GlobalProfileName = "Default",
+        DisplayLoginMessage = true,
+        EditModeManager = {
+            SwapOnInstanceDifficulty = false,
+            RaidLayouts = {
+                Normal = "",
+                Heroic = "",
+                Mythic = "",
+                LFR = "",
+            },
+        },
     },
     profile = {
         General = {
@@ -64,38 +74,44 @@ local Defaults = {
                 }
             }
         },
-        EditModeManager = {
-            SwapOnInstanceDifficulty = false,
-            SwapOnSpecializationChange = false,
-            RaidLayouts = {
-                Normal = "",
-                Heroic = "",
-                Mythic = "",
-                LFR = "",
-            },
-            SpecializationLayouts = {
-                [1] = "",
-                [2] = "",
-                [3] = "",
-                [4] = "",
-            },
-        },
         CooldownManager = {
             Enable = true,
             General = {
                 IconZoom = 0.1,
                 BorderSize = 1,
+                DisableAuraOverlay = false,
                 Glow = {
                     Enabled = true,
-                    GlowType = "PIXEL",
-                    Thickness = 1,
-                    Particles = 10,
-                    Scale = 1,
-                    Colour = {1, 1, 1, 1},
-                    Frequency = 0.25,
-                    XOffset = -1,
-                    YOffset = -1,
-                    Lines = 5,
+                    Type = "Pixel",
+                    Pixel = {
+                        Color = {1, 1, 1, 1},
+                        Lines = 5,
+                        Frequency = 0.25,
+                        Length = 2,
+                        Thickness = 1,
+                        XOffset = -1,
+                        YOffset = -1,
+                        Border = false,
+                    },
+                    Autocast = {
+                        Color = {1, 1, 1, 1},
+                        Particles = 10,
+                        Frequency = 0.25,
+                        Scale = 1,
+                        XOffset = -1,
+                        YOffset = -1,
+                    },
+                    Proc = {
+                        Color = {1, 1, 1, 1},
+                        StartAnim = true,
+                        Duration = 1,
+                        XOffset = 0,
+                        YOffset = 0,
+                    },
+                    Button = {
+                        Color = {1, 1, 1, 1},
+                        Frequency = 0.125,
+                    },
                 },
                 CooldownText = {
                     FontSize = 15,
@@ -106,6 +122,10 @@ local Defaults = {
             },
             Essential = {
                 IconSize = 42,
+                IconWidth = 42,
+                IconHeight = 42,
+                KeepAspectRatio = true,
+                CenterHorizontally = false,
                 Layout = {"CENTER", "CENTER", 0, -275.1},
                 Text = {
                     FontSize = 15,
@@ -115,6 +135,10 @@ local Defaults = {
             },
             Utility = {
                 IconSize = 36,
+                IconWidth = 36,
+                IconHeight = 36,
+                KeepAspectRatio = true,
+                CenterHorizontally = false,
                 Layout = {"TOP", "EssentialCooldownViewer", "BOTTOM", 0, -1.1},
                 Text = {
                     FontSize = 15,
@@ -124,6 +148,9 @@ local Defaults = {
             },
             Buffs = {
                 IconSize = 32,
+                IconWidth = 32,
+                IconHeight = 32,
+                KeepAspectRatio = true,
                 CenterBuffs = false,
                 Layout = {"BOTTOM", "BCDM_SecondaryPowerBar", "TOP", 0, 1.1},
                 Text = {
@@ -163,6 +190,9 @@ local Defaults = {
             },
             Custom = {
                 IconSize = 38,
+                IconWidth = 38,
+                IconHeight = 38,
+                KeepAspectRatio = true,
                 FrameStrata = "LOW",
                 Layout = {"CENTER", "NONE", "CENTER", 0, 0},
                 Spacing = 1,
@@ -256,6 +286,9 @@ local Defaults = {
             },
             AdditionalCustom = {
                 IconSize = 38,
+                IconWidth = 38,
+                IconHeight = 38,
+                KeepAspectRatio = true,
                 FrameStrata = "LOW",
                 Layout = {"CENTER", "NONE", "CENTER", 0, 0},
                 Spacing = 1,
@@ -349,6 +382,9 @@ local Defaults = {
             },
             Item = {
                 IconSize = 38,
+                IconWidth = 38,
+                IconHeight = 38,
+                KeepAspectRatio = true,
                 FrameStrata = "LOW",
                 Layout = {"CENTER", "NONE", "CENTER", 0, 0},
                 Spacing = 1,
@@ -364,6 +400,9 @@ local Defaults = {
             Trinket = {
                 Enabled = true,
                 IconSize = 38,
+                IconWidth = 38,
+                IconHeight = 38,
+                KeepAspectRatio = true,
                 FrameStrata = "LOW",
                 Layout = {"CENTER", "NONE", "CENTER", 0, 0},
                 Spacing = 1,
@@ -378,6 +417,9 @@ local Defaults = {
             },
             ItemSpell = {
                 IconSize = 38,
+                IconWidth = 38,
+                IconHeight = 38,
+                KeepAspectRatio = true,
                 FrameStrata = "LOW",
                 Layout = {"CENTER", "NONE", "CENTER", 0, 0},
                 Spacing = 1,

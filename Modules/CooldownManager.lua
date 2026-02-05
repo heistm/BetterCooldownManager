@@ -186,30 +186,18 @@ end
 --     StyleBuffsBars()
 -- end
 
---[[
-local cooldownFrameTbl = {}
-
-for _, child in ipairs({ viewer:GetChildren() }) do
-    cooldownFrameTbl[child:GetCooldownFrame()] = true
-end
-
-hooksecurefunc("CooldownFrame_Set", function(cooldownFrame)
-    if cooldownFrameTbl[cooldownFrame] and cooldownFrame:GetUseAuraDisplayTime() then
-        CooldownFrame_Clear(cooldownFrame)
-    end
-end)
-]]
-
 local function StyleIcons()
     if not ShouldSkin() then return end
     local cooldownManagerSettings = BCDM.db.profile.CooldownManager
     for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
+        local viewerSettings = cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]]
+        local iconWidth, iconHeight = BCDM:GetIconDimensions(viewerSettings)
         for _, childFrame in ipairs({_G[viewerName]:GetChildren()}) do
             if childFrame then
                 if childFrame.Icon then
                     BCDM:StripTextures(childFrame.Icon)
                     local iconZoomAmount = cooldownManagerSettings.General.IconZoom * 0.5
-                    childFrame.Icon:SetTexCoord(iconZoomAmount, 1 - iconZoomAmount, iconZoomAmount, 1 - iconZoomAmount)
+                    BCDM:ApplyIconTexCoord(childFrame.Icon, iconWidth, iconHeight, iconZoomAmount)
                 end
                 if childFrame.Cooldown then
                     local borderSize = cooldownManagerSettings.General.BorderSize
@@ -223,7 +211,7 @@ local function StyleIcons()
                 end
                 if childFrame.CooldownFlash then childFrame.CooldownFlash:SetAlpha(0) end
                 if childFrame.DebuffBorder then childFrame.DebuffBorder:SetAlpha(0) end
-                childFrame:SetSize(cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize, cooldownManagerSettings[BCDM.CooldownManagerViewerToDBViewer[viewerName]].IconSize)
+                childFrame:SetSize(iconWidth, iconHeight)
                 BCDM:AddBorder(childFrame)
                 if not childFrame.layoutIndex then childFrame:SetShown(false) end
             end
@@ -278,7 +266,7 @@ local function StyleChargeCount()
     end
 end
 
-local centerBuffsUpdateThrottle = 0.05
+local centerBuffsUpdateThrottle = 0.01
 local nextcenterBuffsUpdate = 0
 
 local function CenterBuffs()
@@ -293,9 +281,7 @@ local function CenterBuffs()
         end
     end
 
-    table.sort(visibleBuffIcons, function(a, b)
-        return (a.layoutIndex or 0) < (b.layoutIndex or 0)
-    end)
+    table.sort(visibleBuffIcons, function(a, b) return (a.layoutIndex or 0) < (b.layoutIndex or 0) end)
 
     local visibleCount = #visibleBuffIcons
     if visibleCount == 0 then return 0 end
@@ -313,7 +299,6 @@ local function CenterBuffs()
     return visibleCount
 end
 
-
 local centerBuffsEventFrame = CreateFrame("Frame")
 
 local function SetupCenterBuffs()
@@ -327,6 +312,68 @@ local function SetupCenterBuffs()
     end
 end
 
+local function CenterWrappedRows(viewerName)
+    local viewer = _G[viewerName]
+    if not viewer then return end
+
+    local iconLimit = viewer.iconLimit
+    if not iconLimit or iconLimit <= 0 then return end
+
+    local visibleIcons = {}
+    for _, childFrame in ipairs({ viewer:GetChildren() }) do
+        if childFrame and childFrame:IsShown() and childFrame.layoutIndex then
+            table.insert(visibleIcons, childFrame)
+        end
+    end
+
+    table.sort(visibleIcons, function(a, b) return (a.layoutIndex or 0) < (b.layoutIndex or 0) end)
+
+    local visibleCount = #visibleIcons
+    if visibleCount == 0 then return end
+
+    local iconWidth = visibleIcons[1]:GetWidth()
+    local iconHeight = visibleIcons[1]:GetHeight()
+    local iconSpacing = viewer.childXPadding or 0
+    local rowSpacing = viewer.childYPadding or 0
+    local rowHeight = (iconHeight > 0 and iconHeight or iconWidth) + rowSpacing
+
+    local basePoint, _, _, _, baseY = visibleIcons[1]:GetPoint(1)
+    if not basePoint or not baseY then return end
+    local anchorPoint = "TOP"
+    local relativePoint = "TOP"
+    local yDirection = -1
+    if basePoint and basePoint:find("BOTTOM") then
+        anchorPoint = "BOTTOM"
+        relativePoint = "BOTTOM"
+        yDirection = 1
+    end
+
+    local rowCount = math.ceil(visibleCount / iconLimit)
+    for rowIndex = 1, rowCount do
+        local rowStart = (rowIndex - 1) * iconLimit + 1
+        local rowEnd = math.min(rowStart + iconLimit - 1, visibleCount)
+        local rowIcons = rowEnd - rowStart + 1
+        local rowWidth = (rowIcons * iconWidth) + ((rowIcons - 1) * iconSpacing)
+        local startX = -rowWidth / 2 + iconWidth / 2
+        local rowY = baseY + yDirection * (rowIndex - 1) * rowHeight
+
+        for index = rowStart, rowEnd do
+            local iconFrame = visibleIcons[index]
+            iconFrame:ClearAllPoints()
+            iconFrame:SetPoint(anchorPoint, viewer, relativePoint, startX + (index - rowStart) * (iconWidth + iconSpacing), rowY)
+        end
+    end
+end
+
+local function CenterWrappedIcons()
+    local cooldownManagerSettings = BCDM.db.profile.CooldownManager
+    local essentialSettings = cooldownManagerSettings.Essential
+    local utilitySettings = cooldownManagerSettings.Utility
+
+    if essentialSettings and essentialSettings.CenterHorizontally then CenterWrappedRows("EssentialCooldownViewer") end
+    if utilitySettings and utilitySettings.CenterHorizontally then CenterWrappedRows("UtilityCooldownViewer") end
+end
+
 function BCDM:SkinCooldownManager()
     local LEMO = BCDM.LEMO
     LEMO:LoadLayouts()
@@ -336,6 +383,8 @@ function BCDM:SkinCooldownManager()
     Position()
     SetHooks()
     SetupCenterBuffs()
+    if EssentialCooldownViewer and EssentialCooldownViewer.RefreshLayout then hooksecurefunc(EssentialCooldownViewer, "RefreshLayout", function() CenterWrappedIcons() end) end
+    if UtilityCooldownViewer and UtilityCooldownViewer.RefreshLayout then hooksecurefunc(UtilityCooldownViewer, "RefreshLayout", function() CenterWrappedIcons() end) end
     for _, viewerName in ipairs(BCDM.CooldownManagerViewers) do
         C_Timer.After(0.1, function() ApplyCooldownText(viewerName) end)
     end
@@ -351,6 +400,8 @@ function BCDM:UpdateCooldownViewer(viewerType)
     -- if viewerType == "BuffBar" then BCDM:UpdateBuffBarStyle() return end
     local cooldownManagerSettings = BCDM.db.profile.CooldownManager
     local cooldownViewerFrame = _G[BCDM.DBViewerToCooldownManagerViewer[viewerType]]
+    local viewerSettings = cooldownManagerSettings[viewerType]
+    local iconWidth, iconHeight = BCDM:GetIconDimensions(viewerSettings)
     if viewerType == "Custom" then BCDM:UpdateCustomCooldownViewer() return end
     if viewerType == "AdditionalCustom" then BCDM:UpdateAdditionalCustomCooldownViewer() return end
     if viewerType == "Item" then BCDM:UpdateCustomItemBar() return end
@@ -358,12 +409,11 @@ function BCDM:UpdateCooldownViewer(viewerType)
     if viewerType == "ItemSpell" then BCDM:UpdateCustomItemsSpellsBar() return end
     if viewerType == "Buffs" then SetupCenterBuffs() end
 
-
     for _, childFrame in ipairs({cooldownViewerFrame:GetChildren()}) do
         if childFrame then
             if childFrame.Icon and ShouldSkin() then
                 BCDM:StripTextures(childFrame.Icon)
-                childFrame.Icon:SetTexCoord(cooldownManagerSettings.General.IconZoom, 1 - cooldownManagerSettings.General.IconZoom, cooldownManagerSettings.General.IconZoom, 1 - cooldownManagerSettings.General.IconZoom)
+                BCDM:ApplyIconTexCoord(childFrame.Icon, iconWidth, iconHeight, cooldownManagerSettings.General.IconZoom)
             end
             if childFrame.Cooldown then
                 childFrame.Cooldown:ClearAllPoints()
@@ -375,7 +425,7 @@ function BCDM:UpdateCooldownViewer(viewerType)
                 childFrame.Cooldown:SetSwipeTexture("Interface\\Buttons\\WHITE8X8")
             end
             if childFrame.CooldownFlash then childFrame.CooldownFlash:SetAlpha(0) end
-            childFrame:SetSize(cooldownManagerSettings[viewerType].IconSize, cooldownManagerSettings[viewerType].IconSize)
+            childFrame:SetSize(iconWidth, iconHeight)
         end
     end
 

@@ -52,7 +52,7 @@ local function SetupSlashCommands()
     SLASH_BCDM3 = "/cdm"
     SLASH_BCDM4 = "/bcm"
     SlashCmdList["BCDM"] = function() BCDM:CreateGUI() end
-    BCDM:PrettyPrint("'|cFF8080FF/bcdm|r' for in-game configuration.")
+    if BCDM.db.global.DisplayLoginMessage then BCDM:PrettyPrint("'|cFF8080FF/bcdm|r' for in-game configuration.") end
 
     SLASH_BCDMRELOAD1 = "/rl"
     SlashCmdList["BCDMRELOAD"] = function() C_UI.Reload() end
@@ -104,7 +104,7 @@ function BCDM:AddBorder(parentFrame)
     end
 end
 
- function BCDM:StripTextures(textureToStrip)
+function BCDM:StripTextures(textureToStrip)
     if not textureToStrip then return end
     if textureToStrip.GetMaskTexture then
         local i = 1
@@ -124,6 +124,66 @@ end
             end
         end
     end
+end
+
+function BCDM:GetIconDimensions(viewerDB)
+    if not viewerDB then return 0, 0, true end
+    local keepAspect = viewerDB.KeepAspectRatio
+    if keepAspect == nil then
+        keepAspect = true
+    end
+
+    local fallbackSize = viewerDB.IconSize or viewerDB.IconWidth or viewerDB.IconHeight or 32
+    if keepAspect then
+        return fallbackSize, fallbackSize, true
+    end
+
+    local iconWidth = viewerDB.IconWidth or fallbackSize
+    local iconHeight = viewerDB.IconHeight or fallbackSize
+    return iconWidth, iconHeight, false
+end
+
+function BCDM:GetIconTexCoords(width, height, baseZoom)
+    local zoom = baseZoom or 0
+    if zoom < 0 then zoom = 0 end
+    if zoom > 0.49 then zoom = 0.49 end
+
+    local left = zoom
+    local right = 1 - zoom
+    local top = zoom
+    local bottom = 1 - zoom
+
+    if not width or not height or width <= 0 or height <= 0 then
+        return left, right, top, bottom
+    end
+
+    local aspect = width / height
+    local uSpan = right - left
+    local vSpan = bottom - top
+
+    if aspect > 1 then
+        local targetVSpan = uSpan / aspect
+        local extra = (vSpan - targetVSpan) / 2
+        if extra > 0 then
+            top = top + extra
+            bottom = bottom - extra
+        end
+    elseif aspect < 1 then
+        local targetUSpan = vSpan * aspect
+        local extra = (uSpan - targetUSpan) / 2
+        if extra > 0 then
+            left = left + extra
+            right = right - extra
+        end
+    end
+
+    return left, right, top, bottom
+end
+
+function BCDM:ApplyIconTexCoord(texture, width, height, baseZoom)
+    if not texture then return end
+    local left, right, top, bottom = BCDM:GetIconTexCoords(width, height, baseZoom)
+    texture:SetTexCoord(left, right, top, bottom)
 end
 
 function BCDM:Init()
@@ -158,6 +218,8 @@ function BCDM:UpdateBCDM()
     BCDM:UpdateCustomItemBar()
     BCDM:UpdateCustomItemsSpellsBar()
     BCDM:UpdateTrinketBar()
+    BCDM:RefreshCustomGlows()
+    BCDM:RefreshAuraOverlayRemoval()
 end
 
 function BCDM:CreateCooldownViewerOverlays()
@@ -278,13 +340,19 @@ function BCDM:CreatePrompt(title, text, onAccept, onCancel, acceptText, cancelTe
     return promptDialog
 end
 
-function BCDM:AdjustSpellLayoutIndex(direction, spellId, customDB)
+local function NormalizeSpecToken(specToken)
+    if not specToken then return end
+    return tostring(specToken):gsub(" ", ""):upper()
+end
+
+function BCDM:AdjustSpellLayoutIndex(direction, spellId, customDB, targetClass, targetSpec)
     local CooldownManagerDB = BCDM.db.profile
     local CustomDB = CooldownManagerDB.CooldownManager[customDB]
-    local playerClass = select(2, UnitClass("player"))
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local playerClass = targetClass or select(2, UnitClass("player"))
+    local playerSpecialization = NormalizeSpecToken(targetSpec) or NormalizeSpecToken(select(2, GetSpecializationInfo(GetSpecialization())))
     local DefensiveSpells = CustomDB.Spells
 
+    if not playerClass or not playerSpecialization then return end
     if not DefensiveSpells[playerClass] or not DefensiveSpells[playerClass][playerSpecialization] or not DefensiveSpells[playerClass][playerSpecialization][spellId] then return end
 
     local currentIndex = DefensiveSpells[playerClass][playerSpecialization][spellId].layoutIndex
@@ -339,13 +407,14 @@ function BCDM:NormalizeSpellLayoutIndices(customDB, playerClass, playerSpecializ
     end
 end
 
-function BCDM:AdjustSpellList(spellId, adjustingHow, customDB)
+function BCDM:AdjustSpellList(spellId, adjustingHow, customDB, targetClass, targetSpec)
     local CooldownManagerDB = BCDM.db.profile
     local CustomDB = CooldownManagerDB.CooldownManager[customDB]
-    local playerClass = select(2, UnitClass("player"))
-    local playerSpecialization = select(2, GetSpecializationInfo(GetSpecialization())):gsub(" ", ""):upper()
+    local playerClass = targetClass or select(2, UnitClass("player"))
+    local playerSpecialization = NormalizeSpecToken(targetSpec) or NormalizeSpecToken(select(2, GetSpecializationInfo(GetSpecialization())))
     local DefensiveSpells = CustomDB.Spells
 
+    if not playerClass or not playerSpecialization then return end
     if not DefensiveSpells[playerClass] then
         DefensiveSpells[playerClass] = {}
     end
@@ -409,15 +478,15 @@ BCDM.AnchorParents = {
         { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CastBar" },
     },
     ["BuffBar"] = {
-    {
-        ["EssentialCooldownViewer"] = "|cFF00AEF7Blizzard|r: Essential Cooldown Viewer",
-        ["UtilityCooldownViewer"] = "|cFF00AEF7Blizzard|r: Utility Cooldown Viewer",
-        ["NONE"] = "|cFF00AEF7Blizzard|r: UIParent",
-        ["BCDM_PowerBar"] = "|cFF8080FFBCDM|r: Power Bar",
-        ["BCDM_SecondaryPowerBar"] = "|cFF8080FFBCDM|r: Secondary Power Bar",
-        ["BCDM_CastBar"] = "|cFF8080FFBCDM|r: Cast Bar",
-    },
-    { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CastBar" },
+        {
+            ["EssentialCooldownViewer"] = "|cFF00AEF7Blizzard|r: Essential Cooldown Viewer",
+            ["UtilityCooldownViewer"] = "|cFF00AEF7Blizzard|r: Utility Cooldown Viewer",
+            ["NONE"] = "|cFF00AEF7Blizzard|r: UIParent",
+            ["BCDM_PowerBar"] = "|cFF8080FFBCDM|r: Power Bar",
+            ["BCDM_SecondaryPowerBar"] = "|cFF8080FFBCDM|r: Secondary Power Bar",
+            ["BCDM_CastBar"] = "|cFF8080FFBCDM|r: Cast Bar",
+        },
+        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CastBar" },
     },
     ["Custom"] = {
         {
@@ -465,7 +534,7 @@ BCDM.AnchorParents = {
             ["BCDM_CustomItemSpellBar"] = "|cFF8080FFBCDM|r: Items/Spells Bar",
             ["BCDM_TrinketBar"] = "|cFF8080FFBCDM|r: Trinket Bar",
         },
-        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "PlayerFrame", "TargetFrame", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CustomItemBar", "BCDM_CustomItemSpellBar", "BCDM_TrinketBar" },
+        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "PlayerFrame", "TargetFrame", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CustomCooldownViewer", "BCDM_AdditionalCustomCooldownViewer", "BCDM_CustomItemSpellBar", "BCDM_TrinketBar" },
     },
     ["Trinket"] = {
         {
@@ -481,7 +550,7 @@ BCDM.AnchorParents = {
             ["BCDM_CustomItemBar"] = "|cFF8080FFBCDM|r: Item Bar",
             ["BCDM_CustomItemSpellBar"] = "|cFF8080FFBCDM|r: Items/Spells Bar",
         },
-        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "PlayerFrame", "TargetFrame", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CustomItemBar", "BCDM_CustomItemSpellBar" },
+        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "PlayerFrame", "TargetFrame", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CustomCooldownViewer", "BCDM_AdditionalCustomCooldownViewer", "BCDM_CustomItemBar", "BCDM_CustomItemSpellBar" },
     },
     ["ItemSpell"] = {
         {
@@ -497,7 +566,7 @@ BCDM.AnchorParents = {
             ["BCDM_CustomItemBar"] = "|cFF8080FFBCDM|r: Item Bar",
             ["BCDM_TrinketBar"] = "|cFF8080FFBCDM|r: Trinket Bar",
         },
-        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "PlayerFrame", "TargetFrame", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CustomItemBar", "BCDM_CustomItemSpellBar", "BCDM_TrinketBar" },
+        { "EssentialCooldownViewer", "UtilityCooldownViewer", "NONE", "PlayerFrame", "TargetFrame", "BCDM_PowerBar", "BCDM_SecondaryPowerBar", "BCDM_CustomCooldownViewer", "BCDM_AdditionalCustomCooldownViewer", "BCDM_CustomItemBar", "BCDM_TrinketBar" },
     },
     ["Power"] = {
         {
@@ -515,8 +584,7 @@ BCDM.AnchorParents = {
         },
         { "EssentialCooldownViewer", "UtilityCooldownViewer", "BCDM_PowerBar"},
     },
-    ["CastBar"] =
-    {
+    ["CastBar"] = {
         {
             ["EssentialCooldownViewer"] = "|cFF00AEF7Blizzard|r: Essential Cooldown Viewer",
             ["UtilityCooldownViewer"] = "|cFF00AEF7Blizzard|r: Utility Cooldown Viewer",
